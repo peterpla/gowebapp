@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 )
 
 func main() {
@@ -13,7 +14,14 @@ func main() {
 		http.ServeFile(w, r, "/Users/peterplamondon/go/src/github.com/peterpla/gowebapp/public/favicon.ico")
 	})
 
-	err := http.ListenAndServe(":8080", nil)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+		log.Printf("defaulting to port %s\n", port)
+	}
+	log.Printf("listening on port %s\n", port)
+	err := http.ListenAndServe(":"+port, nil)
+
 	log.Printf("Error return from http.ListenAndServe: %v", err)
 }
 
@@ -32,12 +40,15 @@ func (h Home) registerRoutes() {
 }
 
 func (h Home) handleHome(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "text/html")
+	w.Header().Add("Content-Security-Policy", "script-src 'self' https://stackpath.bootstrapcdn.com https://ajax.googleapis.com https://cdnjs.cloudflare.com")
+
 	fmt.Fprintf(w, `<!DOCTYPE html>
 	<html lang="en">
 	<head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-	<title>Bootstrap 4 Fixed Layout Example</title>
+	<title>Bootstrap 4 Responsive Layout Example</title>
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
 	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
@@ -46,7 +57,7 @@ func (h Home) handleHome(w http.ResponseWriter, r *http.Request) {
 	</head>
 	<body>
 	<nav class="navbar navbar-expand-md navbar-dark bg-dark mb-3">
-		<div class="container">
+		<div class="container-fluid">
 			<a href="#" class="navbar-brand mr-3">Tutorial Republic</a>
 			<button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarCollapse">
 				<span class="navbar-toggler-icon"></span>
@@ -72,20 +83,35 @@ func (h Home) handleHome(w http.ResponseWriter, r *http.Request) {
 			<p><a href="https://www.tutorialrepublic.com" target="_blank" class="btn btn-success btn-lg">Get started today</a></p>
 		</div>
 		<div class="row">
-			<div class="col-md-4">
+			<div class="col-md-6 col-lg-4 col-xl-3">
 				<h2>HTML</h2>
-				<p>HTML is the standard markup language for describing the structure of the web pages. Our HTML tutorials will help you to understand the basics of latest HTML5 language, so that you can create your own web pages or website.</p>
-				<p><a href="https://www.tutorialrepublic.com/html-tutorial/" target="_blank" class="btn btn-success">Learn More »</a></p>
+				<p>HTML is the standard markup language for describing the structure of the web pages. Our HTML tutorials will help you to understand the basics of latest HTML5 language, so that you can create your own website.</p>
+				<p><a href="https://www.tutorialrepublic.com/html-tutorial/" target="_blank" class="btn btn-success">Learn More &raquo;</a></p>
 			</div>
-			<div class="col-md-4">
+			<div class="col-md-6 col-lg-4 col-xl-3">
 				<h2>CSS</h2>
 				<p>CSS is used for describing the presentation of web pages. CSS can save a lot of time and effort. Our CSS tutorials will help you to learn the essentials of latest CSS3, so that you can control the style and layout of your website.</p>
-				<p><a href="https://www.tutorialrepublic.com/css-tutorial/" target="_blank" class="btn btn-success">Learn More »</a></p>
+				<p><a href="https://www.tutorialrepublic.com/css-tutorial/" target="_blank" class="btn btn-success">Learn More &raquo;</a></p>
 			</div>
-			<div class="col-md-4">
+			<div class="col-md-6 col-lg-4 col-xl-3">
+				<h2>JavaScript</h2>
+				<p>JavaScript is the most popular and widely used client-side scripting language. Our JavaScript tutorials will provide in-depth knowledge of the JavaScript including ES6 features, so that you can create interactive websites.</p>
+				<p><a href="https://www.tutorialrepublic.com/javascript-tutorial/" target="_blank" class="btn btn-success">Learn More &raquo;</a></p>
+			</div>
+			<div class="col-md-6 col-lg-4 col-xl-3">
 				<h2>Bootstrap</h2>
 				<p>Bootstrap is a powerful front-end framework for faster and easier web development. Our Bootstrap tutorials will help you to learn all the features of latest Bootstrap 4 framework so that you can easily create responsive websites.</p>
-				<p><a href="https://www.tutorialrepublic.com/twitter-bootstrap-tutorial/" target="_blank" class="btn btn-success">Learn More »</a></p>
+				<p><a href="https://www.tutorialrepublic.com/twitter-bootstrap-tutorial/" target="_blank" class="btn btn-success">Learn More &raquo;</a></p>
+			</div>
+			<div class="col-md-6 col-lg-4 col-xl-3">
+				<h2>References</h2>
+				<p>Our references section outlines all the standard HTML5 tags and CSS3 properties along with other useful references such as color names and values, character entities, web safe fonts, language codes, HTTP messages, and more.</p>
+				<p><a href="https://www.tutorialrepublic.com/twitter-bootstrap-tutorial/" target="_blank" class="btn btn-success">Learn More &raquo;</a></p>
+			</div>
+			<div class="col-md-6 col-lg-4 col-xl-3">
+				<h2>FAQ</h2>
+				<p>Our Frequently Asked Questions (FAQ) section is an extensive collection of FAQs that provides quick and working solution of common questions and queries related to web design and development with live demo.</p>
+				<p><a href="https://www.tutorialrepublic.com/twitter-bootstrap-tutorial/" target="_blank" class="btn btn-success">Learn More &raquo;</a></p>
 			</div>
 		</div>
 		<hr>
@@ -103,5 +129,5 @@ func (h Home) handleHome(w http.ResponseWriter, r *http.Request) {
 		</footer>
 	</div>
 	</body>
-	</html>`)
+	</html>                            `)
 }
