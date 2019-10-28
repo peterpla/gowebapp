@@ -1,13 +1,25 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 )
 
+var (
+	pConfig  *string
+	pPort    *int
+	pVerbose *bool
+)
+
 func main() {
+	if err := loadFlagsAndConfig(); err != nil {
+		log.Fatalf("Error loading flags and configuration: %v", err)
+	}
+	log.Println("Flags and configuration file processed.")
+
 	h := NewHome()
 	h.registerRoutes()
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
@@ -23,6 +35,34 @@ func main() {
 	err := http.ListenAndServe(":"+port, nil)
 
 	log.Printf("Error return from http.ListenAndServe: %v", err)
+}
+
+// loadFlagsAndConfig reads the configuration file from 1) a local file when
+// running locally, or 2) Cloud Storage and decrypts it using Cloud KMS.
+//
+// (gdeploy.sh deploys the app to Google App Engine, encrypting the local
+// configuration file using Cloud KMS and writing it to Cloud Storage.)
+func loadFlagsAndConfig() error {
+	// process command line flags:
+	//    first standard library's flag package, then migrate to https://github.com/spf13/pflag
+
+	// appname --config=path/filename --port=int --v
+	// fs := flag.NewFlagSet("appname", flag.PanicOnError)
+	pConfig = flag.String("config", "", "configuration file to use: --config=\"path/file\"")
+	pPort = flag.Int("port", 8080, "port to listen on: --port=8080")
+	pVerbose = flag.Bool("v", false, "enable verbose output: --v")
+	flag.Parse()
+
+	log.Printf("flags: config: %s, port: %d, verbose: %t\n", *pConfig, *pPort, *pVerbose)
+
+	// read (encrypted) configuration file from Cloud Storage:
+	//    https://github.com/GoogleCloudPlatform/golang-samples/blob/master/storage/objects/main.go
+	// decrypt using Cloud KMS:
+	//    https://github.com/GoogleCloudPlatform/golang-samples/tree/master/kms
+	// bind Viper to Cobra flags using viper.BindPFlags()
+	// pass (decrypted) configuration file to Viper:
+	//    https://github.com/spf13/viper
+	return nil
 }
 
 // Home - controller
@@ -41,7 +81,7 @@ func (h Home) registerRoutes() {
 
 func (h Home) handleHome(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/html")
-	w.Header().Add("Content-Security-Policy", "script-src 'self' https://stackpath.bootstrapcdn.com https://ajax.googleapis.com https://cdnjs.cloudflare.com")
+	w.Header().Add("Content-Security-Policy", "script-src https://stackpath.bootstrapcdn.com https://ajax.googleapis.com https://cdnjs.cloudflare.com; object-src 'none'")
 
 	fmt.Fprintf(w, `<!DOCTYPE html>
 	<html lang="en">
@@ -51,7 +91,7 @@ func (h Home) handleHome(w http.ResponseWriter, r *http.Request) {
 	<title>Bootstrap 4 Responsive Layout Example</title>
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
 	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
 	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
 	</head>
