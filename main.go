@@ -1,24 +1,28 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/spf13/pflag"
 )
 
-var (
-	pConfig  *string
-	pPort    *int
-	pVerbose *bool
-)
+type config struct {
+	configFile string
+	port       int
+	verbose    bool
+	help       bool
+}
+
+var cfg config
 
 func main() {
-	if err := loadFlagsAndConfig(); err != nil {
+	if err := loadFlagsAndConfig(&cfg); err != nil {
 		log.Fatalf("Error loading flags and configuration: %v", err)
 	}
-	log.Println("Flags and configuration file processed.")
+	log.Printf("config file: %q, port: %d, verbose: %t\n", cfg.configFile, cfg.port, cfg.verbose)
 
 	h := NewHome()
 	h.registerRoutes()
@@ -26,13 +30,9 @@ func main() {
 		http.ServeFile(w, r, "/Users/peterplamondon/go/src/github.com/peterpla/gowebapp/public/favicon.ico")
 	})
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-		log.Printf("defaulting to port %s\n", port)
-	}
+	port := fmt.Sprintf(":%d", cfg.port)
 	log.Printf("listening on port %s\n", port)
-	err := http.ListenAndServe(":"+port, nil)
+	err := http.ListenAndServe(port, nil)
 
 	log.Printf("Error return from http.ListenAndServe: %v", err)
 }
@@ -42,18 +42,27 @@ func main() {
 //
 // (gdeploy.sh deploys the app to Google App Engine, encrypting the local
 // configuration file using Cloud KMS and writing it to Cloud Storage.)
-func loadFlagsAndConfig() error {
-	// process command line flags:
-	//    first standard library's flag package, then migrate to https://github.com/spf13/pflag
+func loadFlagsAndConfig(cfg *config) error {
+	// process command line flags using  https://github.com/spf13/pflag
 
-	// appname --config=path/filename --port=int --v
-	// fs := flag.NewFlagSet("appname", flag.PanicOnError)
-	pConfig = flag.String("config", "", "configuration file to use: --config=\"path/file\"")
-	pPort = flag.Int("port", 8080, "port to listen on: --port=8080")
-	pVerbose = flag.Bool("v", false, "enable verbose output: --v")
-	flag.Parse()
+	// appname --config=path/filename --port=int --v --help
+	pflag.StringVar(&cfg.configFile, "config", "", "--config=\"path/file\" to specify the configuration file to use")
+	pflag.IntVar(&cfg.port, "port", 8080, "--port=8080 to listen on port :8080")
+	pflag.BoolVar(&cfg.verbose, "v", false, "--v to enable verbose output")
+	pflag.BoolVar(&cfg.help, "help", false, "")
+	helpText := `
+	appname
+	--config="path/file.ext" to specify the configuration file to use
+	--help to display this usage info
+	--port=80 to listen on port :80 (default is :8080)
+	--v to enable verbose output
+	`
+	pflag.Parse()
 
-	log.Printf("flags: config: %s, port: %d, verbose: %t\n", *pConfig, *pPort, *pVerbose)
+	if cfg.help {
+		fmt.Fprintf(os.Stdout, "%s\n", helpText)
+		os.Exit(0)
+	}
 
 	// read (encrypted) configuration file from Cloud Storage:
 	//    https://github.com/GoogleCloudPlatform/golang-samples/blob/master/storage/objects/main.go
