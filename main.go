@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/spf13/pflag"
 )
@@ -30,9 +31,12 @@ func main() {
 		http.ServeFile(w, r, "/Users/peterplamondon/go/src/github.com/peterpla/gowebapp/public/favicon.ico")
 	})
 
-	port := fmt.Sprintf(":%d", cfg.port)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = strconv.Itoa(cfg.port)
+	}
 	log.Printf("listening on port %s\n", port)
-	err := http.ListenAndServe(port, nil)
+	err := http.ListenAndServe(":"+port, nil)
 
 	log.Printf("Error return from http.ListenAndServe: %v", err)
 }
