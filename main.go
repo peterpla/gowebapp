@@ -31,7 +31,7 @@ func main() {
 		http.ServeFile(w, r, "/Users/peterplamondon/go/src/github.com/peterpla/gowebapp/public/favicon.ico")
 	})
 
-	port := os.Getenv("PORT")
+	port := os.Getenv("PORT") // Google App Engine complains if "PORT" env var isn't checked
 	if port == "" {
 		port = strconv.Itoa(cfg.port)
 	}
