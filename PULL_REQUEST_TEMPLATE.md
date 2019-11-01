@@ -4,7 +4,7 @@
 
 A summary of the change and which issue is fixed. Include relevant motivation and context. List any dependencies that are required for this change.
 
-Fixes # (issue)
+Resolves #(issue)
 
 ## Type of change
 
