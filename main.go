@@ -18,12 +18,23 @@ type config struct {
 }
 
 var cfg config
+var helpText = `
+appname
+--config="path/file.ext" to specify the configuration file to use
+--help to display this usage info
+--port=80 to listen on port :80 (default is :8080)
+--v to enable verbose output
+`
 
 func main() {
 	if err := loadFlagsAndConfig(&cfg); err != nil {
 		log.Fatalf("Error loading flags and configuration: %v", err)
 	}
-	log.Printf("config file: %q, port: %d, verbose: %t\n", cfg.configFile, cfg.port, cfg.verbose)
+	// log.Printf("config file: %q, port: %d, verbose: %t\n", cfg.configFile, cfg.port, cfg.verbose)
+	if cfg.help {
+		fmt.Fprintf(os.Stdout, "%s\n", helpText)
+		os.Exit(0)
+	}
 
 	h := NewHome()
 	h.registerRoutes()
@@ -54,19 +65,7 @@ func loadFlagsAndConfig(cfg *config) error {
 	pflag.IntVar(&cfg.port, "port", 8080, "--port=8080 to listen on port :8080")
 	pflag.BoolVar(&cfg.verbose, "v", false, "--v to enable verbose output")
 	pflag.BoolVar(&cfg.help, "help", false, "")
-	helpText := `
-	appname
-	--config="path/file.ext" to specify the configuration file to use
-	--help to display this usage info
-	--port=80 to listen on port :80 (default is :8080)
-	--v to enable verbose output
-	`
 	pflag.Parse()
-
-	if cfg.help {
-		fmt.Fprintf(os.Stdout, "%s\n", helpText)
-		os.Exit(0)
-	}
 
 	// read (encrypted) configuration file from Cloud Storage:
 	//    https://github.com/GoogleCloudPlatform/golang-samples/blob/master/storage/objects/main.go
