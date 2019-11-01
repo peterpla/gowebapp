@@ -1,0 +1,12 @@
+# https://cloud.google.com/appengine/docs/standard/go113/config/appref
+runtime: go113
+
+handlers:
+- url: /.*
+  secure: always
+  redirect_http_response_code: 301
+  script: auto
+
+# env_variables:
+#  PORT: '8080'
+#  GOOGLE_APPLICATION_CREDENTIALS: '/Users/peterplamondon/oldmancodes-224604-2f9d9c625b1b.json'
