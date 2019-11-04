@@ -7,6 +7,11 @@ handlers:
   redirect_http_response_code: 301
   script: auto
 
-# env_variables:
-#  PORT: '8080'
-#  GOOGLE_APPLICATION_CREDENTIALS: '/Users/peterplamondon/oldmancodes-224604-2f9d9c625b1b.json'
+env_variables:
+  PROJECT_ID: elated-practice-224603
+  STORAGE_LOCATION: us-west2
+  ENCRYPTED_BUCKET: elated-practice-224603-gowebapp-secret
+  CONFIG_FILE: config.yaml
+  KMS_LOCATION: us-west2
+  KMS_KEYRING: devkeyring
+  KMS_KEY: config
