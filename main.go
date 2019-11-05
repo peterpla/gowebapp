@@ -175,7 +175,9 @@ func loadFlagsAndConfig(Cfg *config) error {
 		return err
 	}
 
+<<<<<<< HEAD
 	// log.Printf("Exiting, after BindEnv() and Unmarshal(), Cfg: %+v\n", Cfg)
+>>>>>>> a888b49ed2ba4a5f84d77e5fbaed994151e29dc4
 	return nil
 }
 

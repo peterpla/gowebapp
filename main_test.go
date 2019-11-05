@@ -27,7 +27,9 @@ func TestLoadFlagsAndConfig(t *testing.T) {
 	if err := loadFlagsAndConfig(&Cfg); err != nil {
 		t.Fatalf("error from loadFlagsAndConfig: %v", err)
 	}
+<<<<<<< HEAD
 	// log.Printf("config file: %q, port: %d, verbose: %t\n", Cfg.configFile, Cfg.port, Cfg.verbose)
+>>>>>>> a888b49ed2ba4a5f84d77e5fbaed994151e29dc4
 	if Cfg.configFile != defaultResult.configFile ||
 		Cfg.port != defaultResult.port ||
 		Cfg.verbose != defaultResult.verbose ||
