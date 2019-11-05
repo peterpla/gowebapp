@@ -7,7 +7,7 @@ import (
 
 func TestLoadFlagsAndConfig(t *testing.T) {
 
-	var cfg config
+	var Cfg config
 
 	defaultResult := config{
 		configFile: "",
@@ -16,14 +16,14 @@ func TestLoadFlagsAndConfig(t *testing.T) {
 		help:       false,
 	}
 
-	if err := loadFlagsAndConfig(&cfg); err != nil {
+	if err := loadFlagsAndConfig(&Cfg); err != nil {
 		t.Fatalf("error from loadFlagsAndConfig: %v", err)
 	}
-	log.Printf("config file: %q, port: %d, verbose: %t\n", cfg.configFile, cfg.port, cfg.verbose)
-	if cfg.configFile != defaultResult.configFile ||
-		cfg.port != defaultResult.port ||
-		cfg.verbose != defaultResult.verbose ||
-		cfg.help != defaultResult.help {
-		t.Fatalf("expected %v, got %v", defaultResult, cfg)
+	log.Printf("config file: %q, port: %d, verbose: %t\n", Cfg.configFile, Cfg.port, Cfg.verbose)
+	if Cfg.configFile != defaultResult.configFile ||
+		Cfg.port != defaultResult.port ||
+		Cfg.verbose != defaultResult.verbose ||
+		Cfg.help != defaultResult.help {
+		t.Fatalf("expected %v, got %v", defaultResult, Cfg)
 	}
 }

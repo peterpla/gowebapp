@@ -14,6 +14,12 @@
 .git
 .gitignore
 
+# Visual Studio Code
+.vscode/
+
+# application exclusions
+config.yaml
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
