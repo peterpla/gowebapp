@@ -1,15 +1,22 @@
-# Description
+# Name
+
+## Description
 
 A summary of the change and which issue is fixed. Include relevant motivation and context. List any dependencies that are required for this change.
 
-Resolves #(issue)
+Resolves #(issue) -- PRs MUST respond to an issue, if one does not exist create one on GitHub BEFORE submitting the PR
 
 ## Type of change
 
 Delete options that are not relevant.
 
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Fix (non-breaking change which fixes an issue)
+- [ ] Feature (non-breaking change which adds functionality)
+- [ ] Refactor (refactor production code)
+- [ ] Docs (change to documentation)
+- [ ] Test (adding or refactoring tests; no production code change)
+- [ ] Chore (updating grunt tasks etc; no production code change)
+
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] This change requires a documentation update
 
