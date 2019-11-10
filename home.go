@@ -14,12 +14,7 @@ func NewHome() *Home {
 	return &Home{}
 }
 
-func (h Home) registerRoutes() {
-	http.HandleFunc("/", h.handleHome)
-	http.HandleFunc("/home", h.handleHome)
-}
-
-func (h Home) handleHome(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleHome(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/html")
 	w.Header().Add("Content-Security-Policy", "script-src https://stackpath.bootstrapcdn.com https://ajax.googleapis.com https://cdnjs.cloudflare.com; object-src 'none'")
 

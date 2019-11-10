@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 
 	cloudkms "cloud.google.com/go/kms/apiv1"
@@ -14,29 +15,26 @@ import (
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
 )
 
-// Cfg holds the app-wide configuration
-var Cfg config
-
 // loadFlagsAndConfig reads the configuration file from Cloud Storage and decrypts it using Cloud KMS.
 //
 // (gdeploy.sh deploys the app to Google App Engine, encrypting the local
 // configuration file using Cloud KMS and writing it to Cloud Storage.)
-func loadFlagsAndConfig(Cfg *config) error {
-	// log.Printf("Entering, Cfg: %+v", Cfg)
+func loadFlagsAndConfig(cfg *config) error {
+	log.Printf("Entering, cfg: %+v", cfg)
 
 	// ***** ***** process command line flags ***** *****
 	// appname --port=8080 --v --help
-	pflag.IntVar(&Cfg.port, "port", 8080, "--port=8080 to listen on port :8080")
-	pflag.BoolVar(&Cfg.verbose, "v", false, "--v to enable verbose output")
-	pflag.BoolVar(&Cfg.help, "help", false, "")
+	pflag.IntVar(&cfg.port, "port", 8080, "--port=8080 to listen on port :8080")
+	pflag.BoolVar(&cfg.verbose, "v", false, "--v to enable verbose output")
+	pflag.BoolVar(&cfg.help, "help", false, "")
 	pflag.Parse()
 	viper.BindPFlags(pflag.CommandLine)
 
-	if Cfg.help {
+	if cfg.help {
 		fmt.Fprintf(os.Stdout, "%s\n", helpText)
 		os.Exit(0)
 	}
-	// log.Printf("After pflag.Parse(), Cfg: %+v", Cfg)
+	// log.Printf("After pflag.Parse(), cfg: %+v", cfg)
 
 	/* initialize Viper, precedence:
 	 * - explicit call to Set
@@ -55,13 +53,13 @@ func loadFlagsAndConfig(Cfg *config) error {
 	}
 
 	// retrieve env vars needed to open the config file
-	Cfg.encryptedBucket = os.Getenv("ENCRYPTED_BUCKET")
-	Cfg.storageLocation = os.Getenv("STORAGE_LOCATION")
-	Cfg.configFile = os.Getenv("CONFIG_FILE")
-	configFileEncrypted := Cfg.configFile + ".enc"
-	// log.Printf("After os.Getenv() GCS env vars, Cfg: %+v", Cfg)
+	cfg.encryptedBucket = os.Getenv("ENCRYPTED_BUCKET")
+	cfg.storageLocation = os.Getenv("STORAGE_LOCATION")
+	cfg.configFile = os.Getenv("CONFIG_FILE")
+	configFileEncrypted := cfg.configFile + ".enc"
+	// log.Printf("After os.Getenv() GCS env vars, cfg: %+v", cfg)
 
-	r, err := client.Bucket(Cfg.encryptedBucket).Object(configFileEncrypted).NewReader(ctx)
+	r, err := client.Bucket(cfg.encryptedBucket).Object(configFileEncrypted).NewReader(ctx)
 	if err != nil {
 		return err
 	}
@@ -74,14 +72,14 @@ func loadFlagsAndConfig(Cfg *config) error {
 	}
 
 	// retrieve env vars needed to decrypt the config file contents
-	Cfg.projectID = os.Getenv("PROJECT_ID")     // "elated-practice-224603"
-	Cfg.kmsLocation = os.Getenv("KMS_LOCATION") // "us-west2"
-	Cfg.kmsKeyRing = os.Getenv("KMS_KEYRING")   // "devkeyring"
-	Cfg.kmsKey = os.Getenv("KMS_KEY")           // "config"
-	// log.Printf("After os.Getenv() KMS env vars, Cfg: %+v", Cfg)
+	cfg.projectID = os.Getenv("PROJECT_ID")     // "elated-practice-224603"
+	cfg.kmsLocation = os.Getenv("KMS_LOCATION") // "us-west2"
+	cfg.kmsKeyRing = os.Getenv("KMS_KEYRING")   // "devkeyring"
+	cfg.kmsKey = os.Getenv("KMS_KEY")           // "config"
+	// log.Printf("After os.Getenv() KMS env vars, cfg: %+v", cfg)
 
 	keyName := fmt.Sprintf("projects/%s/locations/%s/keyRings/%s/cryptoKeys/%s",
-		Cfg.projectID, Cfg.kmsLocation, Cfg.kmsKeyRing, Cfg.kmsKey)
+		cfg.projectID, cfg.kmsLocation, cfg.kmsKeyRing, cfg.kmsKey)
 
 	// decrypt using Cloud KMS:
 	//    https://github.com/GoogleCloudPlatform/golang-samples/blob/master/kms/kms_decrypt.go
@@ -109,10 +107,10 @@ func loadFlagsAndConfig(Cfg *config) error {
 		return err
 	}
 
-	Cfg.appName = viper.GetString("AppName")
-	Cfg.description = viper.GetString("Description")
-	Cfg.version = viper.GetString("Version")
-	// log.Printf("After ReadConfig(), Cfg: %+v", Cfg)
+	cfg.appName = viper.GetString("AppName")
+	cfg.description = viper.GetString("Description")
+	cfg.version = viper.GetString("Version")
+	// log.Printf("After ReadConfig(), cfg: %+v", cfg)
 
 	// bind env vars to Viper
 	viper.BindEnv("projectID", "PROJECT_ID")
@@ -121,13 +119,13 @@ func loadFlagsAndConfig(Cfg *config) error {
 	viper.BindEnv("kmsKeyRing", "KMS_KEYRING")
 	viper.BindEnv("kmsLocation", "KMS_LOCATION")
 	viper.AutomaticEnv()
-	// unmarshall all bound flags and env vars to Cfg
-	err = viper.Unmarshal(&Cfg)
+	// unmarshall all bound flags and env vars to cfg
+	err = viper.Unmarshal(cfg)
 	if err != nil {
 		return err
 	}
 
-	// log.Printf("Exiting, after BindEnv() and Unmarshal(), Cfg: %+v\n", Cfg)
+	log.Printf("Exiting, after BindEnv() and Unmarshal(), cfg: %+v\n", cfg)
 	return nil
 }
 
