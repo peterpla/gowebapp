@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 
 	cloudkms "cloud.google.com/go/kms/apiv1"
@@ -20,7 +19,7 @@ import (
 // (gdeploy.sh deploys the app to Google App Engine, encrypting the local
 // configuration file using Cloud KMS and writing it to Cloud Storage.)
 func loadFlagsAndConfig(cfg *config) error {
-	log.Printf("Entering, cfg: %+v", cfg)
+	// log.Printf("Entering, cfg: %+v", cfg)
 
 	// ***** ***** process command line flags ***** *****
 	// appname --port=8080 --v --help
@@ -125,7 +124,7 @@ func loadFlagsAndConfig(cfg *config) error {
 		return err
 	}
 
-	log.Printf("Exiting, after BindEnv() and Unmarshal(), cfg: %+v\n", cfg)
+	// log.Printf("Exiting, after BindEnv() and Unmarshal(), cfg: %+v\n", cfg)
 	return nil
 }
 

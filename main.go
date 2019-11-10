@@ -22,9 +22,9 @@ func NewServer() *server {
 }
 
 func main() {
-	s := NewServer()
+	srv := NewServer()
 
-	pCfg := s.cfg
+	pCfg := srv.cfg
 
 	if err := loadFlagsAndConfig(pCfg); err != nil {
 		log.Fatalf("Error loading flags and configuration: %v", err)
@@ -33,9 +33,9 @@ func main() {
 
 	// h := NewHome()
 	_ = NewHome()
-	s.router = http.NewServeMux()
+	srv.router = http.NewServeMux()
 
-	s.routes()
+	srv.routes()
 
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "/Users/peterplamondon/go/src/github.com/peterpla/gowebapp/public/favicon.ico")
@@ -43,7 +43,7 @@ func main() {
 
 	port := os.Getenv("PORT") // Google App Engine complains if "PORT" env var isn't checked
 	if port == "" {
-		port = strconv.Itoa(s.cfg.port)
+		port = strconv.Itoa(srv.cfg.port)
 	}
 	log.Printf("listening on port %s\n", port)
 	err := http.ListenAndServe(":"+port, nil)

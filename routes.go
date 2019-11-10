@@ -1,8 +1,11 @@
 package main
 
-import "net/http"
+import (
+	"net/http"
+)
 
-func (s *server) routes() {
-	http.HandleFunc("/", s.handleHome)
-	http.HandleFunc("/home", s.handleHome)
+func (srv *server) routes() {
+	http.HandleFunc("/", srv.handleHomeOld) // not equivalent to s.router.HandleFunc ???
+	http.HandleFunc("/home", srv.handleHomeOld)
+	http.HandleFunc("/about", srv.handleAbout)
 }
