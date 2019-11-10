@@ -1,37 +1,87 @@
 package main
 
 import (
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 )
 
-func TestLoadFlagsAndConfig(t *testing.T) {
+var srv *server
 
-	var Cfg config
+func TestMain(m *testing.M) {
+	srv = NewServer()
+	os.Exit(m.Run())
+}
 
-	defaultResult := config{
-		appName:         "gowebapp",
-		configFile:      "config.yaml",
-		description:     "Describe gowebapp here",
-		encryptedBucket: "elated-practice-224603-gowebapp-secret",
-		kmsKey:          "config",
-		kmsKeyRing:      "devkeyring",
-		kmsLocation:     "us-west2",
-		port:            8080,
-		projectID:       "elated-practice-224603",
-		storageLocation: "us-west2",
-		verbose:         false,
-		version:         "0.1.0",
-		help:            false,
+func TestHomeHandler(t *testing.T) {
+
+	type test struct {
+		name    string
+		url     string
+		status  int
+		content string
 	}
 
-	if err := loadFlagsAndConfig(&Cfg); err != nil {
-		t.Fatalf("error from loadFlagsAndConfig: %v", err)
+	tests := []test{
+		{name: "empty", url: "", status: http.StatusOK, content: "nav-link active\">Home</a>"},
+		{name: "slash", url: "/", status: http.StatusOK, content: "nav-link active\">Home</a>"},
+		{name: "home", url: "/home", status: http.StatusOK, content: "nav-link active\">Home</a>"},
 	}
-	// log.Printf("config file: %q, port: %d, verbose: %t\n", Cfg.configFile, Cfg.port, Cfg.verbose)
-	if Cfg.configFile != defaultResult.configFile ||
-		Cfg.port != defaultResult.port ||
-		Cfg.verbose != defaultResult.verbose ||
-		Cfg.help != defaultResult.help {
-		t.Fatalf("expected %v, got %v", defaultResult, Cfg)
+
+	for _, tc := range tests {
+		// log.Printf("%s: testing URL: %s", tc.name, tc.url)
+		req, err := http.NewRequest("GET", tc.url, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(srv.handleHomeOld)
+
+		handler.ServeHTTP(rr, req)
+
+		if got := rr.Code; got != tc.status {
+			t.Errorf("%s: expected status code: %v, got %v",
+				tc.name, tc.status, got)
+		}
+
+		var b []byte
+		if b, err = ioutil.ReadAll(rr.Body); err != nil {
+			t.Fatalf("%s: ReadAll(rr.Body) error: %v", tc.name, err)
+		}
+		h1 := strings.Index(string(b), tc.content)
+		if h1 < 0 {
+			t.Errorf("%s: expected '%s', not found", tc.name, tc.content)
+		}
+	}
+}
+
+func TestAboutHandler(t *testing.T) {
+	req, err := http.NewRequest("GET", "/about", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(srv.handleHomeOld)
+
+	handler.ServeHTTP(rr, req)
+
+	if got := rr.Code; got != http.StatusOK {
+		t.Errorf("expected status code %v, got %v",
+			http.StatusOK, got)
+	}
+
+	var b []byte
+	if b, err = ioutil.ReadAll(rr.Body); err != nil {
+		t.Fatalf("ReadAll(rr.Body) error: %v", err)
+	}
+	content := `nav-link">About</a>`
+	h1 := strings.Index(string(b), content)
+	if h1 < 0 {
+		t.Errorf("expected '%s', not found", content)
 	}
 }

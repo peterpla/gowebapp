@@ -32,7 +32,7 @@ func (srv *server) handleAbout(w http.ResponseWriter, r *http.Request) {
 				<div class="navbar-nav">
 					<a href="home" class="nav-item nav-link active">Home</a>
 					<a href="#" class="nav-item nav-link">Services</a>
-					<a href="#" class="nav-item nav-link">About</a>
+					<a href="#" class="nav-item nav-link">AboutXXX</a>
 					<a href="#" class="nav-item nav-link">Contact</a>
 				</div>
 				<div class="navbar-nav ml-auto">
