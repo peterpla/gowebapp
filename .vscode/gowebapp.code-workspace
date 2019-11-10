@@ -4,5 +4,10 @@
 			"path": "/Users/peterplamondon/go/src/github.com/peterpla/gowebapp"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"go.lintTool":"golangci-lint",
+		"go.lintFlags": [
+  			"--fast"
+		]
+	}
 }

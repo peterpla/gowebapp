@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 
 	cloudkms "cloud.google.com/go/kms/apiv1"
@@ -27,7 +28,9 @@ func loadFlagsAndConfig(cfg *config) error {
 	pflag.BoolVar(&cfg.verbose, "v", false, "--v to enable verbose output")
 	pflag.BoolVar(&cfg.help, "help", false, "")
 	pflag.Parse()
-	viper.BindPFlags(pflag.CommandLine)
+	if err := viper.BindPFlags(pflag.CommandLine); err != nil {
+		log.Fatalf("error from viper.BindPFlags: %v", err)
+	}
 
 	if cfg.help {
 		fmt.Fprintf(os.Stdout, "%s\n", helpText)
@@ -112,11 +115,21 @@ func loadFlagsAndConfig(cfg *config) error {
 	// log.Printf("After ReadConfig(), cfg: %+v", cfg)
 
 	// bind env vars to Viper
-	viper.BindEnv("projectID", "PROJECT_ID")
-	viper.BindEnv("storageLocation", "STORAGE_LOCATION")
-	viper.BindEnv("kmsKey", "KMS_KEY")
-	viper.BindEnv("kmsKeyRing", "KMS_KEYRING")
-	viper.BindEnv("kmsLocation", "KMS_LOCATION")
+	if err := viper.BindEnv("projectID", "PROJECT_ID"); err != nil {
+		log.Fatalf("error from viper.BindEnv: %v", err)
+	}
+	if err := viper.BindEnv("storageLocation", "STORAGE_LOCATION"); err != nil {
+		log.Fatalf("error from viper.BindEnv: %v", err)
+	}
+	if err := viper.BindEnv("kmsKey", "KMS_KEY"); err != nil {
+		log.Fatalf("error from viper.BindEnv: %v", err)
+	}
+	if err := viper.BindEnv("kmsKeyRing", "KMS_KEYRING"); err != nil {
+		log.Fatalf("error from viper.BindEnv: %v", err)
+	}
+	if err := viper.BindEnv("kmsLocation", "KMS_LOCATION"); err != nil {
+		log.Fatalf("error from viper.BindEnv: %v", err)
+	}
 	viper.AutomaticEnv()
 	// unmarshall all bound flags and env vars to cfg
 	err = viper.Unmarshal(cfg)

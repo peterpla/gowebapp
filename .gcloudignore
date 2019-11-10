@@ -19,6 +19,7 @@
 
 # application exclusions
 config.yaml
+.env.yaml
 
 # Binaries for programs and plugins
 *.exe
