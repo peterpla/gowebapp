@@ -15,7 +15,7 @@ func TestAboutHandler(t *testing.T) {
 	}
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(srv.handleHomeOld)
+	handler := http.HandlerFunc(srv.handleAbout)
 
 	handler.ServeHTTP(rr, req)
 
@@ -28,7 +28,7 @@ func TestAboutHandler(t *testing.T) {
 	if b, err = ioutil.ReadAll(rr.Body); err != nil {
 		t.Fatalf("ReadAll(rr.Body) error: %v", err)
 	}
-	content := `nav-link">About</a>`
+	content := `<h1>About</h1>`
 	h1 := strings.Index(string(b), content)
 	if h1 < 0 {
 		t.Errorf("expected '%s', not found", content)
