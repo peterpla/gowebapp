@@ -5,11 +5,12 @@ import (
 	"net/http"
 )
 
-func (srv *server) handleAbout(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "text/html")
-	w.Header().Add("Content-Security-Policy", "script-src https://stackpath.bootstrapcdn.com https://ajax.googleapis.com https://cdnjs.cloudflare.com; object-src 'none'")
+func (srv *server) handleAdmin() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "text/html")
+		w.Header().Add("Content-Security-Policy", "script-src https://stackpath.bootstrapcdn.com https://ajax.googleapis.com https://cdnjs.cloudflare.com; object-src 'none'")
 
-	fmt.Fprintf(w, `<!DOCTYPE html>
+		fmt.Fprintf(w, `<!DOCTYPE html>
 	<html lang="en">
 	<head>
 	<meta charset="utf-8">
@@ -32,7 +33,7 @@ func (srv *server) handleAbout(w http.ResponseWriter, r *http.Request) {
 				<div class="navbar-nav">
 					<a href="home" class="nav-item nav-link active">Home</a>
 					<a href="#" class="nav-item nav-link">Services</a>
-					<a href="#" class="nav-item nav-link">About</a>
+					<a href="about" class="nav-item nav-link">About</a>
 					<a href="#" class="nav-item nav-link">Contact</a>
 				</div>
 				<div class="navbar-nav ml-auto">
@@ -45,7 +46,7 @@ func (srv *server) handleAbout(w http.ResponseWriter, r *http.Request) {
 	</nav>
 	<div class="container">
 		<div class="jumbotron">
-			<h1>About</h1>
+			<h1>Admin</h1>
 			<p class="lead">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut suscipit vel felis in interdum. Suspendisse in quam lobortis, ultrices lorem vel, scelerisque nibh. Donec lobortis, odio sit amet cursus blandit, purus ex blandit arcu, vel euismod libero ligula quis sem. Mauris in cursus nunc, ut laoreet lorem. Sed id tempor ante.</p>
 		</div>
 		<hr>
@@ -64,4 +65,5 @@ func (srv *server) handleAbout(w http.ResponseWriter, r *http.Request) {
 	</div>
 	</body>
 	</html>`)
+	}
 }

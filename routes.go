@@ -5,9 +5,10 @@ import (
 )
 
 func (srv *server) routes() {
-	http.HandleFunc("/", srv.handleHomeOld) // not equivalent to s.router.HandleFunc ???
-	http.HandleFunc("/home", srv.handleHomeOld)
+	http.HandleFunc("/", srv.handleHome()) // not equivalent to s.router.HandleFunc ???
+	http.HandleFunc("/home", srv.handleHome())
 	http.HandleFunc("/about", srv.handleAbout)
+	http.HandleFunc("/admin", srv.adminOnly(srv.handleAdmin()))
 
 	// show all routes
 	// v := reflect.ValueOf(http.DefaultServeMux).Elem()
