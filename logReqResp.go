@@ -6,8 +6,9 @@ import (
 	"os"
 )
 
-func logReqResp(next http.Handler) http.Handler {
+func LogReqResp(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// log.Printf("Enter LogReqResp, next: %p\n", next)
 		rec := &statusRecorder{w, 200}
 
 		next.ServeHTTP(rec, r)
@@ -15,6 +16,7 @@ func logReqResp(next http.Handler) http.Handler {
 		if os.Getenv("GAE_ENV") == "" {
 			log.Printf("%s %s %s %d\n", r.RemoteAddr, r.Method, r.URL, rec.status)
 		}
+		// log.Printf("Exit LogReqResp\n")
 	})
 }
 

@@ -19,10 +19,10 @@ func TestAdminHandler(t *testing.T) {
 
 	tests := []test{
 		{name: "loggedIn", url: "/admin", params: map[string]string{"loggedIn": "true"}, status: http.StatusOK, content: "<h1>Admin</h1>"},
-		{name: "notLoggedIn", url: "/admin", status: http.StatusNotFound, content: ""},
+		{name: "notLoggedIn", url: "/admin", status: http.StatusNotFound},
 	}
 
-	srv := &server{}
+	srv := NewServer()
 
 	for _, tc := range tests {
 		// log.Printf("%s: testing URL: %s", tc.name, tc.url)
@@ -39,12 +39,10 @@ func TestAdminHandler(t *testing.T) {
 		req.URL.RawQuery = q.Encode()
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(srv.adminOnly(srv.handleAdmin()))
-
-		handler.ServeHTTP(rr, req)
+		srv.adminOnly(rr, req)
 
 		if got := rr.Code; got != tc.status {
-			t.Errorf("%s: expected status code: %v, got %v",
+			t.Errorf("%s: expected status %v, got %v",
 				tc.name, tc.status, got)
 		}
 
