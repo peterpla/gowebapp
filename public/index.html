@@ -1,25 +1,4 @@
-package main
-
-import (
-	"fmt"
-	"net/http"
-)
-
-// Home - controller
-type Home struct {
-}
-
-// NewHome contructor for home
-func NewHome() *Home {
-	return &Home{}
-}
-
-func (srv *server) handleHome() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Type", "text/html")
-		w.Header().Add("Content-Security-Policy", "script-src https://stackpath.bootstrapcdn.com https://ajax.googleapis.com https://cdnjs.cloudflare.com; object-src 'none'")
-
-		fmt.Fprintf(w, `<!DOCTYPE html>
+<!DOCTYPE html>
 	<html lang="en">
 	<head>
 	<meta charset="utf-8">
@@ -42,13 +21,12 @@ func (srv *server) handleHome() http.HandlerFunc {
 				<div class="navbar-nav">
 					<a href="#" class="nav-item nav-link active">Home</a>
 					<a href="#" class="nav-item nav-link">Services</a>
-					<a href="about" class="nav-item nav-link">About</a>
+					<a href="about.html" class="nav-item nav-link">About</a>
 					<a href="#" class="nav-item nav-link">Contact</a>
 				</div>
 				<div class="navbar-nav ml-auto">
 					<a href="#" class="nav-item nav-link">Register</a>
 					<a href="#" class="nav-item nav-link">Login</a>
-					<a href="admin" class="nav-item nav-link">Admin</a>
 				</div>
 			</div>
 		</div>    
@@ -106,6 +84,4 @@ func (srv *server) handleHome() http.HandlerFunc {
 		</footer>
 	</div>
 	</body>
-	</html>`)
-	}
-}
+</html>

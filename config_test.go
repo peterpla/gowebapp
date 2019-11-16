@@ -25,10 +25,13 @@ func TestLoadFlagsAndConfig(t *testing.T) {
 		help:            false,
 	}
 
-	if err := loadFlagsAndConfig(&cfg); err != nil {
-		t.Fatalf("error from loadFlagsAndConfig: %v", err)
-	}
-	if !reflect.DeepEqual(defaultResult, cfg) {
-		t.Fatalf("expected %v, got %v", defaultResult, cfg)
+	// guard against calling twice, which will trigger panic with "flag redefined"
+	if srv.cfg.port == 0 { // uninitialized port value
+		if err := loadFlagsAndConfig(&cfg); err != nil {
+			t.Fatalf("error from loadFlagsAndConfig: %v", err)
+		}
+		if !reflect.DeepEqual(defaultResult, cfg) {
+			t.Fatalf("expected %v, got %v", defaultResult, cfg)
+		}
 	}
 }

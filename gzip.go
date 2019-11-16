@@ -10,6 +10,7 @@ import (
 
 func GzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// log.Printf("Enter GzipMiddleware, next: %p\n", next)
 		if os.Getenv("GAE_ENV") == "" {
 			// not running on Google App Engine, we must handle gzip'ing
 			encodings := r.Header.Get("Accept-Encoding")
@@ -34,6 +35,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 			// pass the request along - Google App Engine auto-gzip's if the client accepts it
 			next.ServeHTTP(w, r)
 		}
+		// log.Printf("Exit GzipMiddleware\n")
 	})
 }
 
