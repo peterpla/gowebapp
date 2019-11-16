@@ -42,16 +42,13 @@ func main() {
 	}
 	// log.Printf("config: %+v\n", srv.cfg)
 
-	// http.HandleFunc("/about", srv.handleAbout)
-	http.HandleFunc("/admin.html", srv.adminOnly)
-	// http.HandleFunc("/favicon.ico", srv.faviconHandler)
-
 	// FileServer returns a handler that serves HTTP requests with the
 	// contents of the file system rooted at http.Dir("/root").
 	// As a special case, the returned file server redirects any
 	// request ending in "/index.html" to the same path, without
 	// the final "index.html".
 	http.Handle("/", http.FileServer(http.Dir("./public")))
+	http.HandleFunc("/favicon.ico", faviconHandler)
 
 	// show all routes
 	// v := reflect.ValueOf(http.DefaultServeMux).Elem()
@@ -62,13 +59,12 @@ func main() {
 		port = strconv.Itoa(srv.cfg.port)
 	}
 	log.Printf("listening on port %s\n", port)
-	// err := http.ListenAndServe(":"+port, LogReqResp(GzipMiddleware(srv.router)))
 	srv.router = http.DefaultServeMux
-	err := http.ListenAndServe(":"+port, LogReqResp(srv.router))
+	err := http.ListenAndServe(":"+port, LogReqResp(http.DefaultServeMux))
 
 	log.Printf("Error return from http.ListenAndServe: %v", err)
 }
 
-func (srv *server) faviconHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "/favicon.ico")
+func faviconHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "static/favicon.ico")
 }

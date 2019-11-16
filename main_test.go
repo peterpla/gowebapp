@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -33,22 +32,18 @@ func TestEndpoints(t *testing.T) {
 
 	tests := []test{
 		{name: "no-path", url: "", status: http.StatusOK, content: "<h1>Learn to Create Websites</h1>"},
-		{name: "root", url: "/", status: http.StatusOK, content: "<h1>Learn to Create Websites</h1>"},
-		{name: "index", url: "/index.html", status: http.StatusOK, content: "<h1>Learn to Create Websites</h1>"},
-		{name: "about", url: "/about.html", status: http.StatusOK, content: "<h1>About</h1>"},
-		{name: "admin", url: "/admin.html", status: http.StatusNotFound},
-		{name: "admin-logged-in", url: "/admin.html?loggedIn=true", status: http.StatusOK, content: "<h1>Admin</h1>"},
-		{name: "favicon", url: "/favicon.ico", status: http.StatusOK},
+		{name: "index", url: "index.html", status: http.StatusOK, content: "<h1>Learn to Create Websites</h1>"},
+		{name: "about", url: "about.html", status: http.StatusOK, content: "<h1>About</h1>"},
+		{name: "favicon", url: "favicon.ico", status: http.StatusOK},
 	}
 
-	prefix := "http://localhost:" + strconv.Itoa(srv.cfg.port)
-	if srv.isGAE {
-		prefix = fmt.Sprintf("https://%s.appspot.com", srv.cfg.projectID)
-	}
+	// IMPORTANT: comment/uncomment to change where the app is running
+	// prefix := "http://localhost:" + strconv.Itoa(srv.cfg.port)
+	prefix := fmt.Sprintf("https://%s.appspot.com", srv.cfg.projectID)
 
 	for _, tc := range tests {
 		endpoint := tc.url
-		url := prefix + endpoint
+		url := prefix + "/" + endpoint
 		// log.Printf("Test %s: %s", tc.name, url)
 
 		response, err := http.Get(url)

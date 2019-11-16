@@ -2,6 +2,13 @@
 runtime: go113
 
 handlers:
+- url: /static
+  static_dir: public
+
+- url: /(.*\.(gif|png|jpg|ico))$
+  static_files: static/\1
+  upload: static/.*\.(gif|png|jpg|ico)$
+
 - url: /.*
   secure: always
   redirect_http_response_code: 301
@@ -10,6 +17,7 @@ handlers:
 env_variables:
   PROJECT_ID: elated-practice-224603
   STORAGE_LOCATION: us-west2
+  STATIC_FILES_BUCKET: elated-practice-224603
   ENCRYPTED_BUCKET: elated-practice-224603-gowebapp-secret
   CONFIG_FILE: config.yaml
   KMS_LOCATION: us-west2
