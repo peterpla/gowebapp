@@ -34,7 +34,7 @@ func TestEndpoints(t *testing.T) {
 		{name: "no-path", url: "", status: http.StatusOK, content: "<h1>Learn to Create Websites</h1>"},
 		{name: "index", url: "index.html", status: http.StatusOK, content: "<h1>Learn to Create Websites</h1>"},
 		{name: "about", url: "about.html", status: http.StatusOK, content: "<h1>About</h1>"},
-		// {name: "favicon", url: "favicon.ico", status: http.StatusOK},
+		{name: "favicon", url: "favicon.ico", status: http.StatusOK},
 	}
 
 	// IMPORTANT: comment/uncomment to change where the app is running

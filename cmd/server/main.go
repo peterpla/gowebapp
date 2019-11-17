@@ -6,7 +6,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/peterpla/gowebapp/middleware"
+	"github.com/peterpla/gowebapp/pkg/middleware"
 )
 
 type server struct {
@@ -66,5 +66,5 @@ func main() {
 }
 
 func faviconHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "static/favicon.ico")
+	http.ServeFile(w, r, "../../public/favicon.ico")
 }
