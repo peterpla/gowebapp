@@ -6,7 +6,7 @@ import (
 	"os"
 	"strconv"
 
-	// replaces deprecated google.golang.org/api/cloudkms/v1
+	"github.com/peterpla/gowebapp/middleware"
 )
 
 type server struct {
@@ -47,7 +47,7 @@ func main() {
 	// As a special case, the returned file server redirects any
 	// request ending in "/index.html" to the same path, without
 	// the final "index.html".
-	http.Handle("/", http.FileServer(http.Dir("./public")))
+	http.Handle("/", http.FileServer(http.Dir("../../public/")))
 	http.HandleFunc("/favicon.ico", faviconHandler)
 
 	// show all routes
@@ -60,7 +60,7 @@ func main() {
 	}
 	log.Printf("listening on port %s\n", port)
 	srv.router = http.DefaultServeMux
-	err := http.ListenAndServe(":"+port, LogReqResp(http.DefaultServeMux))
+	err := http.ListenAndServe(":"+port, middleware.LogReqResp(http.DefaultServeMux))
 
 	log.Printf("Error return from http.ListenAndServe: %v", err)
 }
