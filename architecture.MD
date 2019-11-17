@@ -52,10 +52,22 @@ cmd (things you start)
 |__server
    |__main.go (HTTP server, routing, etc.)
 pkg
-|__adding
+|__adding (enqueue)
+|__completing
+|__delivering
 |__listing
+|__removing (dequeue)
 |__reviewing
 |__storage
 |__submitting
 |__[value objects - `struct`s]
+```
+
+## GAE Services
+
+Google App Engine services as defined in `app.yaml` files.
+
+``` text
+default (./cmd/server, app startup)
+|__wInitialRequest (./cmd/wInitialRequest, incoming requests for transcription)
 ```
