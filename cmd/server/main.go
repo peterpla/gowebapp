@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -42,6 +43,7 @@ func main() {
 	}
 	// log.Printf("config: %+v\n", srv.cfg)
 
+	http.HandleFunc("/api/v1", apiHandler())
 	// FileServer returns a handler that serves HTTP requests with the
 	// contents of the file system rooted at http.Dir("/root").
 	// As a special case, the returned file server redirects any
@@ -63,6 +65,12 @@ func main() {
 	err := http.ListenAndServe(":"+port, middleware.LogReqResp(http.DefaultServeMux))
 
 	log.Printf("Error return from http.ListenAndServe: %v", err)
+}
+
+func apiHandler() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("apiHandler\n")
+	}
 }
 
 func faviconHandler(w http.ResponseWriter, r *http.Request) {

@@ -71,3 +71,11 @@ Google App Engine services as defined in `app.yaml` files.
 default (./cmd/server, app startup)
 |__wInitialRequest (./cmd/wInitialRequest, incoming requests for transcription)
 ```
+
+## Cloud Tasks Queues
+
+Google Cloud Tasks queues:
+
+``` text
+wInitialRequest (tasks added by `default` service, processed by `w-initial-request` service, ./cmd/wInitialRequest)
+```

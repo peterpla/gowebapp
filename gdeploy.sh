@@ -13,7 +13,7 @@ gsutil -m rsync -R ./public gs://`echo $STATIC_FILES_BUCKET`.appspot.com/static
 # deploy server app = "default" service
 gcloud app deploy --verbosity=warning ./cmd/server/app.yaml
 
-# deploy wInitialRequest app = "wInitialRequest" service
+# deploy wInitialRequest app = "w-initial-request" service
 gcloud app deploy --verbosity=warning ./cmd/wInitialRequest/app.yaml
 
 # list all services in the current project
