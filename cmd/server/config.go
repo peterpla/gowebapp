@@ -74,10 +74,15 @@ func loadFlagsAndConfig(cfg *config) error {
 	}
 
 	// retrieve env vars needed to decrypt the config file contents
-	cfg.projectID = os.Getenv("PROJECT_ID")     // "elated-practice-224603"
-	cfg.kmsLocation = os.Getenv("KMS_LOCATION") // "us-west2"
-	cfg.kmsKeyRing = os.Getenv("KMS_KEYRING")   // "devkeyring"
-	cfg.kmsKey = os.Getenv("KMS_KEY")           // "config"
+	cfg.projectID = os.Getenv("PROJECT_ID")
+	cfg.kmsLocation = os.Getenv("KMS_LOCATION")
+	cfg.kmsKeyRing = os.Getenv("KMS_KEYRING")
+	cfg.kmsKey = os.Getenv("KMS_KEY")
+
+	// env vars for Cloud Tasks
+	cfg.tasksLocation = os.Getenv("TASKS_LOCATION")
+	cfg.tasksQRequests = os.Getenv("TASKS_Q_REQUESTS")
+
 	// log.Printf("After os.Getenv() KMS env vars, cfg: %+v", cfg)
 
 	keyName := fmt.Sprintf("projects/%s/locations/%s/keyRings/%s/cryptoKeys/%s",
@@ -115,20 +120,26 @@ func loadFlagsAndConfig(cfg *config) error {
 	// log.Printf("After ReadConfig(), cfg: %+v", cfg)
 
 	// bind env vars to Viper
-	if err := viper.BindEnv("projectID", "PROJECT_ID"); err != nil {
-		log.Fatalf("error from viper.BindEnv: %v", err)
+	type binding struct {
+		structField string
+		envVar      string
 	}
-	if err := viper.BindEnv("storageLocation", "STORAGE_LOCATION"); err != nil {
-		log.Fatalf("error from viper.BindEnv: %v", err)
+
+	bindings := []binding{
+		{structField: "projectID", envVar: "PROJECT_ID"},
+		{structField: "storageLocation", envVar: "STORAGE_LOCATION"},
+		{structField: "kmsKey", envVar: "KMS_KEY"},
+		{structField: "kmsKeyRing", envVar: "KMS_KEYRING"},
+		{structField: "kmsLocation", envVar: "KMS_LOCATION"},
+		{structField: "tasksLocation", envVar: "TASKS_LOCATION"},
+		{structField: "tasksQRequests", envVar: "TASKS_Q_REQUESTS"},
 	}
-	if err := viper.BindEnv("kmsKey", "KMS_KEY"); err != nil {
-		log.Fatalf("error from viper.BindEnv: %v", err)
-	}
-	if err := viper.BindEnv("kmsKeyRing", "KMS_KEYRING"); err != nil {
-		log.Fatalf("error from viper.BindEnv: %v", err)
-	}
-	if err := viper.BindEnv("kmsLocation", "KMS_LOCATION"); err != nil {
-		log.Fatalf("error from viper.BindEnv: %v", err)
+
+	for _, b := range bindings {
+		log.Printf("loadFlagsAndConfig, viper.BindEnv(%q,%q)\n", b.structField, b.envVar)
+		if err := viper.BindEnv(b.structField, b.envVar); err != nil {
+			log.Fatalf("error from viper.BindEnv: %v", err)
+		}
 	}
 	viper.AutomaticEnv()
 	// unmarshall all bound flags and env vars to cfg
@@ -152,6 +163,8 @@ type config struct {
 	Port            int
 	projectID       string
 	storageLocation string
+	tasksLocation   string
+	tasksQRequests  string
 	verbose         bool
 	version         string
 	help            bool

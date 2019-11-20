@@ -20,6 +20,8 @@ func TestLoadFlagsAndConfig(t *testing.T) {
 		Port:            8080,
 		projectID:       "elated-practice-224603",
 		storageLocation: "us-west2",
+		tasksLocation:   "us-west2",
+		tasksQRequests:  "wInitialRequest",
 		verbose:         false,
 		version:         "0.1.0",
 		help:            false,

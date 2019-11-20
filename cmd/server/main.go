@@ -10,6 +10,7 @@ import (
 	"github.com/peterpla/gowebapp/pkg/http/rest"
 	"github.com/peterpla/gowebapp/pkg/middleware"
 	"github.com/peterpla/gowebapp/pkg/storage/memory"
+	"github.com/peterpla/gowebapp/pkg/storage/queue"
 )
 
 // StorageType defines available storage types
@@ -40,7 +41,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // NewServer initializes the app-wide Server struct
 func NewServer() *Server {
 	s := &Server{}
-	s.storageType = Memory // TODO: configurable storage type
+	s.storageType = GCTQueue // TODO: configurable storage type
 	s.isGAE = false
 	if os.Getenv("GAE_ENV") != "" {
 		s.isGAE = true
@@ -56,14 +57,17 @@ func main() {
 	if err := loadFlagsAndConfig(srv.Cfg); err != nil {
 		log.Fatalf("Error loading flags and configuration: %v", err)
 	}
-	// log.Printf("main, config: %+v\n", srv.Cfg)
+	log.Printf("main, config: %+v\n", srv.Cfg)
 
 	switch srv.storageType {
 	case Memory:
 		storage := new(memory.Storage)
-
 		srv.Adder = adding.NewService(storage)
+
 	case GCTQueue:
+		storage := new(queue.GCT)
+		srv.Adder = adding.NewService(storage)
+
 	default:
 		panic("unsupported storageType")
 	}

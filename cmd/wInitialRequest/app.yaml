@@ -17,3 +17,5 @@ env_variables:
   KMS_LOCATION: us-west2
   KMS_KEYRING: devkeyring
   KMS_KEY: config
+  TASKS_LOCATION: "us-west2"
+  TASKS_Q_REQUESTS: "wInitialRequest"
