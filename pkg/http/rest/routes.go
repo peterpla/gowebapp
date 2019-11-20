@@ -21,10 +21,10 @@ func Routes(a adding.Service) http.Handler {
 }
 
 // addRequest returns a handler for POST /requests
-func addRequest(s adding.Service) func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+func addRequest(s adding.Service) httprouter.Handle {
 	// log.Printf("rest.AddRequest - enter/exit")
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		log.Printf("rest.AddRequest handler - enter\n")
+		// log.Printf("rest.AddRequest handler - enter\n")
 		decoder := json.NewDecoder(r.Body)
 
 		var newRequest adding.Request
@@ -37,11 +37,10 @@ func addRequest(s adding.Service) func(w http.ResponseWriter, r *http.Request, p
 
 		s.AddRequest(newRequest)
 
+		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "application/json")
-
-		// TODO: send proper/documented response
 		_ = json.NewEncoder(w).Encode("New request added.")
 
-		log.Printf("rest.AddRequest handler - exit\n")
+		// log.Printf("rest.AddRequest handler - exit\n")
 	}
 }

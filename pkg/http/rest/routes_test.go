@@ -30,18 +30,18 @@ func TestRequestsPost(t *testing.T) {
 			endpoint: "/requests",
 			body:     `{ "customer_id": "12345", "media_url": "http://www.twilio.com/myfile.mp3", "custom_config": false }`,
 			respBody: "New request added.",
-			status:   http.StatusOK},
+			status:   http.StatusCreated},
 	}
 
 	storage := new(memory.Storage)
 	adder := adding.NewService(storage)
 
-	port := os.Getenv("PORT") // needed for localhost testing, not for GAE
+	// port := os.Getenv("PORT") // needed for localhost testing, not for GAE
 	apiPrefix := "/api/v1"
 
 	// IMPORTANT: comment/uncomment to change where the app is running
-	prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
-	// prefix := fmt.Sprintf("https://%s.appspot.com%s", os.Getenv("PROJECT_ID"), apiPrefix)
+	// prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
+	prefix := fmt.Sprintf("https://%s.appspot.com%s", os.Getenv("PROJECT_ID"), apiPrefix)
 
 	for _, tc := range tests {
 		url := prefix + tc.endpoint

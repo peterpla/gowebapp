@@ -82,6 +82,7 @@ func loadFlagsAndConfig(cfg *config) error {
 	// env vars for Cloud Tasks
 	cfg.tasksLocation = os.Getenv("TASKS_LOCATION")
 	cfg.tasksQRequests = os.Getenv("TASKS_Q_REQUESTS")
+	cfg.tasksServiceRequestsPort = os.Getenv("TASKS_SERVICE_REQUESTS_PORT")
 
 	// log.Printf("After os.Getenv() KMS env vars, cfg: %+v", cfg)
 
@@ -133,10 +134,11 @@ func loadFlagsAndConfig(cfg *config) error {
 		{structField: "kmsLocation", envVar: "KMS_LOCATION"},
 		{structField: "tasksLocation", envVar: "TASKS_LOCATION"},
 		{structField: "tasksQRequests", envVar: "TASKS_Q_REQUESTS"},
+		{structField: "tasksServiceRequestsPort", envVar: "TASKS_SERVICE_REQUESTS_PORT"},
 	}
 
 	for _, b := range bindings {
-		log.Printf("loadFlagsAndConfig, viper.BindEnv(%q,%q)\n", b.structField, b.envVar)
+		// log.Printf("loadFlagsAndConfig, viper.BindEnv(%q,%q)\n", b.structField, b.envVar)
 		if err := viper.BindEnv(b.structField, b.envVar); err != nil {
 			log.Fatalf("error from viper.BindEnv: %v", err)
 		}
@@ -153,21 +155,22 @@ func loadFlagsAndConfig(cfg *config) error {
 }
 
 type config struct {
-	appName         string
-	configFile      string
-	description     string
-	encryptedBucket string
-	kmsKey          string
-	kmsKeyRing      string
-	kmsLocation     string
-	Port            int
-	projectID       string
-	storageLocation string
-	tasksLocation   string
-	tasksQRequests  string
-	verbose         bool
-	version         string
-	help            bool
+	appName                  string
+	configFile               string
+	description              string
+	encryptedBucket          string
+	kmsKey                   string
+	kmsKeyRing               string
+	kmsLocation              string
+	Port                     int
+	projectID                string
+	storageLocation          string
+	tasksLocation            string
+	tasksQRequests           string
+	tasksServiceRequestsPort string
+	verbose                  bool
+	version                  string
+	help                     bool
 }
 
 var helpText = `

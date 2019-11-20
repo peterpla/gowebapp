@@ -19,3 +19,4 @@ env_variables:
   KMS_KEY: config
   TASKS_LOCATION: "us-west2"
   TASKS_Q_REQUESTS: "wInitialRequest"
+  TASKS_SERVICE_REQUESTS_PORT: 8081

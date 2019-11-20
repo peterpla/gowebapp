@@ -78,7 +78,7 @@ func main() {
 	if port == "" {
 		port = strconv.Itoa(srv.Cfg.Port)
 	}
-	log.Printf("listening on port %s\n", port)
+	log.Printf("Service default listening on port %s\n", port)
 
 	srv.Router = newRouter
 	err := http.ListenAndServe(":"+port, middleware.LogReqResp(newRouter))

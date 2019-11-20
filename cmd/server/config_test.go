@@ -10,21 +10,22 @@ func TestLoadFlagsAndConfig(t *testing.T) {
 	var cfg config
 
 	defaultResult := config{
-		appName:         "gowebapp",
-		configFile:      "config.yaml",
-		description:     "Describe gowebapp here",
-		encryptedBucket: "elated-practice-224603-gowebapp-secret",
-		kmsKey:          "config",
-		kmsKeyRing:      "devkeyring",
-		kmsLocation:     "us-west2",
-		Port:            8080,
-		projectID:       "elated-practice-224603",
-		storageLocation: "us-west2",
-		tasksLocation:   "us-west2",
-		tasksQRequests:  "wInitialRequest",
-		verbose:         false,
-		version:         "0.1.0",
-		help:            false,
+		appName:                  "gowebapp",
+		configFile:               "config.yaml",
+		description:              "Describe gowebapp here",
+		encryptedBucket:          "elated-practice-224603-gowebapp-secret",
+		kmsKey:                   "config",
+		kmsKeyRing:               "devkeyring",
+		kmsLocation:              "us-west2",
+		Port:                     8080,
+		projectID:                "elated-practice-224603",
+		storageLocation:          "us-west2",
+		tasksLocation:            "us-west2",
+		tasksQRequests:           "wInitialRequest",
+		tasksServiceRequestsPort: "8081",
+		verbose:                  false,
+		version:                  "0.1.0",
+		help:                     false,
 	}
 
 	// guard against calling twice, which will trigger panic with "flag redefined"

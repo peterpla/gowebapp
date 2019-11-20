@@ -15,12 +15,12 @@ import (
 
 // Store data in Google Cloud Tasks queue
 type GCT struct {
-	requests []adding.Request
+	// requests []adding.Request
 }
 
 // Add saves the request to the repository
 func (m *GCT) AddRequest(req adding.Request) error {
-	log.Printf("cloudtasks.AddRequest - enter\n")
+	// log.Printf("queue.AddRequest - enter\n")
 
 	// Create a new Cloud Tasks client instance.
 	// See https://godoc.org/cloud.google.com/go/cloudtasks/apiv2
@@ -37,14 +37,14 @@ func (m *GCT) AddRequest(req adding.Request) error {
 
 	queuePath := fmt.Sprintf("projects/%s/locations/%s/queues/%s",
 		projectID, locationID, queueID)
-	log.Printf("queue.AddRequest, queuePath: %q\n", queuePath)
+	// log.Printf("queue.AddRequest, queuePath: %q\n", queuePath)
 
 	// JSON-encode the incoming req as the payload message
 	message, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("queue.AddRequest: %v", err)
 	}
-	log.Printf("queue.AddRequest, Body: %q\n", message)
+	// log.Printf("queue.AddRequest, Body: %q\n", message)
 
 	// Build the Task payload.
 	// https://godoc.org/google.golang.org/genproto/googleapis/cloud/tasks/v2#CreateTaskRequest
@@ -54,7 +54,10 @@ func (m *GCT) AddRequest(req adding.Request) error {
 			// https://godoc.org/google.golang.org/genproto/googleapis/cloud/tasks/v2#AppEngineHttpRequest
 			MessageType: &taskspb.Task_AppEngineHttpRequest{
 				AppEngineHttpRequest: &taskspb.AppEngineHttpRequest{
-					HttpMethod:  taskspb.HttpMethod_POST,
+					HttpMethod: taskspb.HttpMethod_POST,
+					AppEngineRouting: &taskspb.AppEngineRouting{
+						Service: "w-initial-request",
+					},
 					RelativeUri: "/task_handler",
 					Body:        message,
 				},
@@ -66,9 +69,10 @@ func (m *GCT) AddRequest(req adding.Request) error {
 	if err != nil {
 		return fmt.Errorf("queue.AddRequest: %v", err)
 	}
-	log.Printf("queue.AddRequest, createdTask: %+v\n", createdTask)
+	log.Printf("queue.AddRequest, added to %s\n... createdTask: %+v\n... Body: %s",
+		queuePath, createdTask, createdTask.GetAppEngineHttpRequest().GetBody())
 
-	log.Printf("cloudtasks.AddRequest - exit\n")
+	// log.Printf("queue.AddRequest - exit\n")
 
 	return nil
 }
