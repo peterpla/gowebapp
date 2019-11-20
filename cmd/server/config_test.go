@@ -17,7 +17,7 @@ func TestLoadFlagsAndConfig(t *testing.T) {
 		kmsKey:          "config",
 		kmsKeyRing:      "devkeyring",
 		kmsLocation:     "us-west2",
-		port:            8080,
+		Port:            8080,
 		projectID:       "elated-practice-224603",
 		storageLocation: "us-west2",
 		verbose:         false,
@@ -26,7 +26,7 @@ func TestLoadFlagsAndConfig(t *testing.T) {
 	}
 
 	// guard against calling twice, which will trigger panic with "flag redefined"
-	if srv.cfg.port == 0 { // uninitialized port value
+	if cfg.Port == 0 { // uninitialized port value
 		if err := loadFlagsAndConfig(&cfg); err != nil {
 			t.Fatalf("error from loadFlagsAndConfig: %v", err)
 		}

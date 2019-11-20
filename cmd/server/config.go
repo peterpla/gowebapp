@@ -24,7 +24,7 @@ func loadFlagsAndConfig(cfg *config) error {
 
 	// ***** ***** process command line flags ***** *****
 	// appname --port=8080 --v --help
-	pflag.IntVar(&cfg.port, "port", 8080, "--port=8080 to listen on port :8080")
+	pflag.IntVar(&cfg.Port, "port", 8080, "--port=8080 to listen on port :8080")
 	pflag.BoolVar(&cfg.verbose, "v", false, "--v to enable verbose output")
 	pflag.BoolVar(&cfg.help, "help", false, "")
 	pflag.Parse()
@@ -149,7 +149,7 @@ type config struct {
 	kmsKey          string
 	kmsKeyRing      string
 	kmsLocation     string
-	port            int
+	Port            int
 	projectID       string
 	storageLocation string
 	verbose         bool

@@ -1,78 +1,83 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 
+	"github.com/peterpla/gowebapp/pkg/adding"
+	"github.com/peterpla/gowebapp/pkg/http/rest"
 	"github.com/peterpla/gowebapp/pkg/middleware"
+	"github.com/peterpla/gowebapp/pkg/storage/memory"
 )
 
-type server struct {
-	cfg    *config
-	router *http.ServeMux
-	isGAE  bool
+// StorageType defines available storage types
+type Type int
+
+const (
+	// Memory - store data in memory
+	Memory Type = iota
+	// Cloud Tasks queue - add data to Google Cloud Tasks queue
+	GCTQueue
+)
+
+type Server struct {
+	Cfg         *config
+	Router      http.Handler
+	storageType Type
+	Adder       adding.Service
+	isGAE       bool
 }
 
-func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Enter server.ServeHTTP\n")
-	h := s.router
+	h := s.Router
 	h.ServeHTTP(w, r)
 	log.Printf("Exit server.ServeHTTP\n")
 }
 
-// NewServer initializes the app-wide server struct
-func NewServer() *server {
-	s := &server{}
+// NewServer initializes the app-wide Server struct
+func NewServer() *Server {
+	s := &Server{}
+	s.storageType = Memory // TODO: configurable storage type
 	s.isGAE = false
 	if os.Getenv("GAE_ENV") != "" {
 		s.isGAE = true
 	}
-	s.cfg = &config{}
+	s.Cfg = &config{}
 	return s
 }
 
-var srv *server
+var srv *Server
 
 func main() {
 	srv = NewServer()
-	if err := loadFlagsAndConfig(srv.cfg); err != nil {
+	if err := loadFlagsAndConfig(srv.Cfg); err != nil {
 		log.Fatalf("Error loading flags and configuration: %v", err)
 	}
-	// log.Printf("config: %+v\n", srv.cfg)
+	// log.Printf("main, config: %+v\n", srv.Cfg)
 
-	http.HandleFunc("/api/v1", apiHandler())
-	// FileServer returns a handler that serves HTTP requests with the
-	// contents of the file system rooted at http.Dir("/root").
-	// As a special case, the returned file server redirects any
-	// request ending in "/index.html" to the same path, without
-	// the final "index.html".
-	http.Handle("/", http.FileServer(http.Dir("../../public/")))
-	http.HandleFunc("/favicon.ico", faviconHandler)
+	switch srv.storageType {
+	case Memory:
+		storage := new(memory.Storage)
 
-	// show all routes
-	// v := reflect.ValueOf(http.DefaultServeMux).Elem()
-	// log.Printf("routes: %+v\n", v.FieldByName("m"))
+		srv.Adder = adding.NewService(storage)
+	case GCTQueue:
+	default:
+		panic("unsupported storageType")
+	}
+
+	newRouter := rest.Routes(srv.Adder)
 
 	port := os.Getenv("PORT") // Google App Engine complains if "PORT" env var isn't checked
 	if port == "" {
-		port = strconv.Itoa(srv.cfg.port)
+		port = strconv.Itoa(srv.Cfg.Port)
 	}
 	log.Printf("listening on port %s\n", port)
-	srv.router = http.DefaultServeMux
-	err := http.ListenAndServe(":"+port, middleware.LogReqResp(http.DefaultServeMux))
+
+	srv.Router = newRouter
+	err := http.ListenAndServe(":"+port, middleware.LogReqResp(newRouter))
 
 	log.Printf("Error return from http.ListenAndServe: %v", err)
-}
-
-func apiHandler() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("apiHandler\n")
-	}
-}
-
-func faviconHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "../../public/favicon.ico")
 }

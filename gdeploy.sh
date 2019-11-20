@@ -1,10 +1,10 @@
 #!/usr/bin/bash
 
 # move to project root
-cd /User/peterplamondon/go/src/github.com/peterpla/gowebapp/
+cd /Users/peterplamondon/go/src/github.com/peterpla/gowebapp/
 
 # upload statis files to the bucket
-gsutil -m rsync -R ./public gs://`echo $STATIC_FILES_BUCKET`.appspot.com/static
+#gsutil -m rsync -R ./public gs://`echo $STATIC_FILES_BUCKET`.appspot.com/static
 
 # gcloud meta list-files-for-upload
 # --verbosity= {debug, info, warning, error, critical, none}
