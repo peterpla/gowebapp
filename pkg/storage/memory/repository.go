@@ -6,6 +6,7 @@ import (
 
 // Memory storage keeps data in memory
 type Storage struct {
+	// In-memory representation of incoming request queue
 	requests []adding.Request
 }
 
@@ -24,9 +25,6 @@ func (m *Storage) AddRequest(req adding.Request) error {
 
 	// TODO: pick up custom configuration from request
 	// (if CustomConfig == True) or defaults from customer profile
-
-	// TODO: create different struct(s) for incoming requests,
-	// stored requests, others?
 
 	m.requests = append(m.requests, newRequest)
 	// log.Printf("memory.AddRequest - exit, requests: %+v\n", m.requests)

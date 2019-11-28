@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/peterpla/gowebapp/pkg/adding"
+	"github.com/peterpla/gowebapp/pkg/config"
 	"github.com/peterpla/gowebapp/pkg/http/rest"
 	"github.com/peterpla/gowebapp/pkg/middleware"
 	"github.com/peterpla/gowebapp/pkg/storage/memory"
@@ -24,7 +25,7 @@ const (
 )
 
 type Server struct {
-	Cfg         *config
+	Cfg         *config.Config
 	Router      http.Handler
 	storageType Type
 	Adder       adding.Service
@@ -46,7 +47,7 @@ func NewServer() *Server {
 	if os.Getenv("GAE_ENV") != "" {
 		s.isGAE = true
 	}
-	s.Cfg = &config{}
+	s.Cfg = &config.Config{}
 	return s
 }
 
@@ -54,7 +55,7 @@ var srv *Server
 
 func main() {
 	srv = NewServer()
-	if err := loadFlagsAndConfig(srv.Cfg); err != nil {
+	if err := config.LoadFlagsAndConfig(srv.Cfg); err != nil {
 		log.Fatalf("Error loading flags and configuration: %v", err)
 	}
 	log.Printf("main, config: %+v\n", srv.Cfg)

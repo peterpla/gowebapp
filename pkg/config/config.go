@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"bytes"
@@ -15,24 +15,24 @@ import (
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
 )
 
-// loadFlagsAndConfig reads the configuration file from Cloud Storage and decrypts it using Cloud KMS.
+// LoadFlagsAndConfig reads the configuration file from Cloud Storage and decrypts it using Cloud KMS.
 //
 // (gdeploy.sh deploys the app to Google App Engine, encrypting the local
 // configuration file using Cloud KMS and writing it to Cloud Storage.)
-func loadFlagsAndConfig(cfg *config) error {
+func LoadFlagsAndConfig(cfg *Config) error {
 	// log.Printf("Entering, cfg: %+v", cfg)
 
 	// ***** ***** process command line flags ***** *****
 	// appname --port=8080 --v --help
 	pflag.IntVar(&cfg.Port, "port", 8080, "--port=8080 to listen on port :8080")
-	pflag.BoolVar(&cfg.verbose, "v", false, "--v to enable verbose output")
-	pflag.BoolVar(&cfg.help, "help", false, "")
+	pflag.BoolVar(&cfg.Verbose, "v", false, "--v to enable verbose output")
+	pflag.BoolVar(&cfg.Help, "help", false, "")
 	pflag.Parse()
 	if err := viper.BindPFlags(pflag.CommandLine); err != nil {
 		log.Fatalf("error from viper.BindPFlags: %v", err)
 	}
 
-	if cfg.help {
+	if cfg.Help {
 		fmt.Fprintf(os.Stdout, "%s\n", helpText)
 		os.Exit(0)
 	}
@@ -55,13 +55,13 @@ func loadFlagsAndConfig(cfg *config) error {
 	}
 
 	// retrieve env vars needed to open the config file
-	cfg.encryptedBucket = os.Getenv("ENCRYPTED_BUCKET")
-	cfg.storageLocation = os.Getenv("STORAGE_LOCATION")
-	cfg.configFile = os.Getenv("CONFIG_FILE")
-	configFileEncrypted := cfg.configFile + ".enc"
+	cfg.EncryptedBucket = os.Getenv("ENCRYPTED_BUCKET")
+	cfg.StorageLocation = os.Getenv("STORAGE_LOCATION")
+	cfg.ConfigFile = os.Getenv("CONFIG_FILE")
+	configFileEncrypted := cfg.ConfigFile + ".enc"
 	// log.Printf("After os.Getenv() GCS env vars, cfg: %+v", cfg)
 
-	r, err := client.Bucket(cfg.encryptedBucket).Object(configFileEncrypted).NewReader(ctx)
+	r, err := client.Bucket(cfg.EncryptedBucket).Object(configFileEncrypted).NewReader(ctx)
 	if err != nil {
 		return err
 	}
@@ -74,20 +74,20 @@ func loadFlagsAndConfig(cfg *config) error {
 	}
 
 	// retrieve env vars needed to decrypt the config file contents
-	cfg.projectID = os.Getenv("PROJECT_ID")
-	cfg.kmsLocation = os.Getenv("KMS_LOCATION")
-	cfg.kmsKeyRing = os.Getenv("KMS_KEYRING")
-	cfg.kmsKey = os.Getenv("KMS_KEY")
+	cfg.ProjectID = os.Getenv("PROJECT_ID")
+	cfg.KmsLocation = os.Getenv("KMS_LOCATION")
+	cfg.KmsKeyRing = os.Getenv("KMS_KEYRING")
+	cfg.KmsKey = os.Getenv("KMS_KEY")
 
 	// env vars for Cloud Tasks
-	cfg.tasksLocation = os.Getenv("TASKS_LOCATION")
-	cfg.tasksQRequests = os.Getenv("TASKS_Q_REQUESTS")
-	cfg.tasksServiceRequestsPort = os.Getenv("TASKS_SERVICE_REQUESTS_PORT")
+	cfg.TasksLocation = os.Getenv("TASKS_LOCATION")
+	cfg.TasksQRequests = os.Getenv("TASKS_Q_REQUESTS")
+	cfg.TasksServiceRequestsPort = os.Getenv("TASKS_SERVICE_REQUESTS_PORT")
 
 	// log.Printf("After os.Getenv() KMS env vars, cfg: %+v", cfg)
 
 	keyName := fmt.Sprintf("projects/%s/locations/%s/keyRings/%s/cryptoKeys/%s",
-		cfg.projectID, cfg.kmsLocation, cfg.kmsKeyRing, cfg.kmsKey)
+		cfg.ProjectID, cfg.KmsLocation, cfg.KmsKeyRing, cfg.KmsKey)
 
 	// decrypt using Cloud KMS:
 	//    https://github.com/GoogleCloudPlatform/golang-samples/blob/master/kms/kms_decrypt.go
@@ -115,9 +115,9 @@ func loadFlagsAndConfig(cfg *config) error {
 		return err
 	}
 
-	cfg.appName = viper.GetString("AppName")
-	cfg.description = viper.GetString("Description")
-	cfg.version = viper.GetString("Version")
+	cfg.AppName = viper.GetString("AppName")
+	cfg.Description = viper.GetString("Description")
+	cfg.Version = viper.GetString("Version")
 	// log.Printf("After ReadConfig(), cfg: %+v", cfg)
 
 	// bind env vars to Viper
@@ -127,18 +127,18 @@ func loadFlagsAndConfig(cfg *config) error {
 	}
 
 	bindings := []binding{
-		{structField: "projectID", envVar: "PROJECT_ID"},
-		{structField: "storageLocation", envVar: "STORAGE_LOCATION"},
-		{structField: "kmsKey", envVar: "KMS_KEY"},
-		{structField: "kmsKeyRing", envVar: "KMS_KEYRING"},
-		{structField: "kmsLocation", envVar: "KMS_LOCATION"},
-		{structField: "tasksLocation", envVar: "TASKS_LOCATION"},
-		{structField: "tasksQRequests", envVar: "TASKS_Q_REQUESTS"},
-		{structField: "tasksServiceRequestsPort", envVar: "TASKS_SERVICE_REQUESTS_PORT"},
+		{structField: "ProjectID", envVar: "PROJECT_ID"},
+		{structField: "StorageLocation", envVar: "STORAGE_LOCATION"},
+		{structField: "KmsKey", envVar: "KMS_KEY"},
+		{structField: "KmsKeyRing", envVar: "KMS_KEYRING"},
+		{structField: "KmsLocation", envVar: "KMS_LOCATION"},
+		{structField: "TasksLocation", envVar: "TASKS_LOCATION"},
+		{structField: "TasksQRequests", envVar: "TASKS_Q_REQUESTS"},
+		{structField: "TasksServiceRequestsPort", envVar: "TASKS_SERVICE_REQUESTS_PORT"},
 	}
 
 	for _, b := range bindings {
-		// log.Printf("loadFlagsAndConfig, viper.BindEnv(%q,%q)\n", b.structField, b.envVar)
+		// log.Printf("LoadFlagsAndConfig, viper.BindEnv(%q,%q)\n", b.structField, b.envVar)
 		if err := viper.BindEnv(b.structField, b.envVar); err != nil {
 			log.Fatalf("error from viper.BindEnv: %v", err)
 		}
@@ -154,23 +154,23 @@ func loadFlagsAndConfig(cfg *config) error {
 	return nil
 }
 
-type config struct {
-	appName                  string
-	configFile               string
-	description              string
-	encryptedBucket          string
-	kmsKey                   string
-	kmsKeyRing               string
-	kmsLocation              string
+type Config struct {
+	AppName                  string
+	ConfigFile               string
+	Description              string
+	EncryptedBucket          string
+	KmsKey                   string
+	KmsKeyRing               string
+	KmsLocation              string
 	Port                     int
-	projectID                string
-	storageLocation          string
-	tasksLocation            string
-	tasksQRequests           string
-	tasksServiceRequestsPort string
-	verbose                  bool
-	version                  string
-	help                     bool
+	ProjectID                string
+	StorageLocation          string
+	TasksLocation            string
+	TasksQRequests           string
+	TasksServiceRequestsPort string
+	Verbose                  bool
+	Version                  string
+	Help                     bool
 }
 
 var helpText = `
