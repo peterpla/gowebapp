@@ -1,14 +1,8 @@
 # https://cloud.google.com/appengine/docs/standard/go113/config/appref
 runtime: go113
+service: w-initial-request
 
 handlers:
-- url: /static
-  static_dir: public
-
-- url: /(.*\.(gif|png|jpg|ico))$
-  static_files: static/\1
-  upload: static/.*\.(gif|png|jpg|ico)$
-
 - url: /.*
   secure: always
   redirect_http_response_code: 301
@@ -23,3 +17,6 @@ env_variables:
   KMS_LOCATION: us-west2
   KMS_KEYRING: devkeyring
   KMS_KEY: config
+  TASKS_LOCATION: "us-west2"
+  TASKS_Q_REQUESTS: "wInitialRequest"
+  TASKS_SERVICE_REQUESTS_PORT: 8081
