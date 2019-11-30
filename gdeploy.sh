@@ -11,7 +11,7 @@ cd /Users/peterplamondon/go/src/github.com/peterpla/gowebapp/
 #    --service-account gowebapp-gcs-reader@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com 
 
 # deploy services
-gcloud app deploy --verbosity=warning ./cmd/server/app.yaml ./cmd/wInitialRequest/app.yaml
+gcloud app deploy --verbosity=warning ./cmd/server/app.yaml ./cmd/InitialRequest/app.yaml
 
 # list all services in the current project
 gcloud app services list

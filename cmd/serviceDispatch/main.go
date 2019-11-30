@@ -10,9 +10,15 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+var queueName = os.Getenv("TASKS_Q_SERVICE_DISPATCH")
+var serviceName = os.Getenv("TASKS_SVC_SERVICE_DISPATCH")
+
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
-	log.Printf("Enter wInitialRequest.main\n")
+	if serviceName == "" {
+		log.Fatalf("Env var TASKS_Q_SERVICE_DISPATCH undefined, exiting\n")
+	}
+	log.Printf("Enter %s.main\n", serviceName)
 
 	router := httprouter.New()
 
@@ -25,33 +31,33 @@ func main() {
 	// Allow confirmation the task handling service is running.
 	router.GET("/", indexHandler)
 
-	port := os.Getenv("TASKS_SERVICE_REQUESTS_PORT")
+	port := os.Getenv("TASKS_PORT_SERVICE_DISPATCH")
 	if port == "" {
 		port = "8081"
 		log.Printf("Defaulting to port %s", port)
 	}
 
-	log.Printf("Service wInitialRequest listening on port %s", port)
+	log.Printf("Service %s listening on port %s for tasks from queue %s", serviceName, port, queueName)
 	log.Fatal(http.ListenAndServe(":"+port, router))
 }
 
 // indexHandler responds to requests with "service running"
 func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	log.Printf("Enter wInitialRequest.indexHandler\n")
+	log.Printf("Enter %s.indexHandler\n", serviceName)
 	if r.URL.Path != "/" {
-		log.Printf("wInitialRequest.indexHandler, r.URL.Path: %s, will respond NotFound\n", r.URL.Path)
+		log.Printf("%s.indexHandler, r.URL.Path: %s, will respond NotFound\n", serviceName, r.URL.Path)
 		http.NotFound(w, r)
 		return
 	}
 	// indicate service is running
-	fmt.Fprint(w, "wInitialRequest service running.")
+	fmt.Fprintf(w, "%s service running\n", serviceName)
 }
 
 // taskHandler processes task requests.
 func taskHandler() httprouter.Handle {
-	// log.Printf("wInitialRequest.taskHandler - enter/exit\n")
+	// log.Printf("%s.taskHandler - enter/exit\n", serviceName)
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		// log.Printf("wInitialRequest.taskHandler - enter handler\n")
+		// log.Printf("%s.taskHandler - enter handler\n", serviceName)
 		// log.Printf("request: %+v\n", r)
 		// log.Printf("params: %+v\n", p)
 
@@ -59,7 +65,7 @@ func taskHandler() httprouter.Handle {
 		if !ok || len(t[0]) == 0 {
 			// You may use the presence of the X-Appengine-Taskname header to validate
 			// the request comes from Cloud Tasks.
-			log.Println("Invalid Task: No X-Appengine-Taskname request header found")
+			log.Printf("%s: Invalid Task: No X-Appengine-Taskname request header found\n", serviceName)
 			http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
 			return
 		}
@@ -75,26 +81,26 @@ func taskHandler() httprouter.Handle {
 		// Extract the request body for further task details.
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			// log.Printf("wInitialRequest.main, ReadAll error: %v", err)
+			// log.Printf("%s.main, ReadAll error: %v", serviceName, err)
 			http.Error(w, "Internal Error", http.StatusInternalServerError)
 			return
 		}
 
 		// Log & output details of the task.
-		output := fmt.Sprintf("wInitialRequest.taskHandler, completed: queue %s, task %s\n... payload: %s",
-			queueName, taskName, string(body))
+		output := fmt.Sprintf("%s.taskHandler, completed: queue %s, task %s\n... payload: %s",
+			serviceName, queueName, taskName, string(body))
 		log.Println(output)
 
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.
 		// For example, http.Error(w, "Internal Server Error: Task Processing", http.StatusInternalServerError)
 		w.WriteHeader(http.StatusOK)
 
-		// log.Printf("wInitialRequest.taskHandler - exit hander\n")
+		// log.Printf("%s.taskHandler - exit hander\n", serviceName)
 	}
 }
 
 func myNotFound(w http.ResponseWriter, r *http.Request) {
-	log.Printf("wInitialRequest.myNotFound, request for %s not routed\n", r.URL.Path)
+	log.Printf("%s.myNotFound, request for %s not routed\n", serviceName, r.URL.Path)
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)

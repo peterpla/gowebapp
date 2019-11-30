@@ -69,13 +69,20 @@ Google App Engine services as defined in `app.yaml` files.
 
 ``` text
 default (./cmd/server, app startup)
-|__wInitialRequest (./cmd/wInitialRequest, incoming requests for transcription)
+|__initial-request (./cmd/initial-request, incoming requests for transcription)
 ```
 
 ## Cloud Tasks Queues
 
-Google Cloud Tasks queues:
+Google Cloud Tasks queues and flow: *(see Airtable, "Flooring: Transcription Pipeline" for details)*
 
-``` text
-wInitialRequest (tasks added by `default` service, processed by `w-initial-request` service, ./cmd/wInitialRequest)
-```
+1. **InitialRequest**: tasks added by `default` service, handled by `initial-request` service, `/task_handler` endpoint, implemented in `./cmd/initialRequest/main.go`
+1. **ServiceDispatch**: tasks added by `initial-request` service, handled by `service-dispatch` service, `/task_handler` endpoint, implemented in `./cmd/serviceDispatch/main.go`
+1. **TranscriptionGCP**: tasks added by `service-dispatch` service, handled by `transcription-GCP` service, `/task_handler` endpoint, implemented in `./cmd/transcriptionGCP/main.go`
+1. **TranscriptionComplete**: tasks added by `transcription-GCP` service, handled by `transcription-complete` service, `/task_handler` endpoint, implemented in `./cmd/transcriptionComplete/main.go`
+1. **TranscriptQA**: tasks added by `transcription-complete` service, handled by `transcript-QA` service, `/task_handler` endpoint, implemented in `./cmd/transcriptQA/main.go`
+1. **TranscriptQAComplete**: tasks added by `transcript-QA` service, handled by `transcript-QA-complete` service, `/task_handler` endpoint, implemented in `./cmd/transcriptionQAComplete/main.go`
+1. **Tagging**: tasks added by `transcript-QA-complete` service, handled by `tagging` service, `/task_handler` endpoint, implemented in `./cmd/tagging/main.go`
+1. **TaggingComplete**: tasks added by `tagging` service, handled by `tagging-complete` service, `/task_handler` endpoint, implemented in `./cmd/taggingComplete/main.go`
+1. **TaggingQA**: tasks added by `tagging-complete` service, handled by `tagging-QA` service, `/task_handler` endpoint, implemented in `./cmd/taggingQA/main.go`
+1. **TaggingQAComplete**: tasks added by `tagging-QA` service, handled by `transcript-request-complete` service, `/task_handler` endpoint, implemented in `./cmd/transcriptionRequestComplete/main.go`
