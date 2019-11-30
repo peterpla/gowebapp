@@ -24,9 +24,9 @@ func (g *GCT) AddRequest(req adding.Request) error {
 	// log.Printf("queue.AddRequest - enter\n")
 
 	// Build the Task queue path.
-	projectID := viper.GetString("projectID")
-	locationID := viper.GetString("tasksLocation")
-	queueID := viper.GetString("tasksQRequests")
+	projectID := viper.GetString("ProjectID")
+	locationID := viper.GetString("TasksLocation")
+	queueID := viper.GetString("TaskInitialRequestQ")
 
 	// JSON-encode the incoming req as the payload message
 	requestJSON, err := json.Marshal(req)
@@ -35,7 +35,7 @@ func (g *GCT) AddRequest(req adding.Request) error {
 	}
 	// log.Printf("queue.AddRequest, Body: %q\n", requestJSON)
 
-	taskID, err := g.AddToCloudTasksQ(projectID, locationID, queueID, "w-initial-request", "/task_handler", requestJSON)
+	taskID, err := g.AddToCloudTasksQ(projectID, locationID, queueID, "InitialRequest", "/task_handler", requestJSON)
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceName, ha
 				AppEngineHttpRequest: &taskspb.AppEngineHttpRequest{
 					HttpMethod: taskspb.HttpMethod_POST,
 					AppEngineRouting: &taskspb.AppEngineRouting{
-						Service: "w-initial-request",
+						Service: "InitialRequest",
 					},
 					RelativeUri: "/task_handler",
 					Body:        requestJSON,

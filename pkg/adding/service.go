@@ -26,7 +26,7 @@ func NewService(r Repository) Service {
 	return &service{r}
 }
 
-// AddRequest adds the request to the database
+// AddRequest adds the request to be processed
 func (s *service) AddRequest(req Request) {
 	// log.Printf("adding.AddRequest - enter\n")
 	// TODO: validation

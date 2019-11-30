@@ -18,6 +18,6 @@ env_variables:
   KMS_KEYRING: devkeyring
   KMS_KEY: config
   TASKS_LOCATION: "us-west2"
-  TASKS_Q_REQUESTS: "InitialRequest"
-  TASKS_SVC_REQUESTS: "initial-request"
-  TASKS_PORT_REQUESTS: 8081
+  TASK_INITIAL_REQUEST_SVC: "initial-request"
+  TASK_INITIAL_REQUEST_WRITE_TO_Q: "ServiceDispatch"
+  TASK_INITIAL_REQUEST_PORT: 8081

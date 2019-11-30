@@ -31,6 +31,12 @@ gcloud tasks queues list
 
 # TODO: adjust queue properties like rateLimit, retryConfig
 
+# Use Stackdriver logging with Cloud Tasks queues.
+# The log-sampling-ratio value indicates what percentage of the
+# operations on the queue are logged. Turn off logging by setting the
+# flag to 0.0.
+#gcloud beta tasks queues update InitialRequest --log-sampling-ratio=1.0
+
 # "use describe to verify that your queue was created successfully"
 #gcloud tasks queues describe InitialRequest > gcp_logs/queueDetails_InitialRequest.txt
 #gcloud tasks queues describe ServiceDispatch > gcp_logs/queueDetails_ServiceDispatch.txt

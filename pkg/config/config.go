@@ -81,8 +81,6 @@ func LoadFlagsAndConfig(cfg *Config) error {
 
 	// env vars for Cloud Tasks
 	cfg.TasksLocation = os.Getenv("TASKS_LOCATION")
-	cfg.TasksQRequests = os.Getenv("TASKS_Q_REQUESTS")
-	cfg.TasksServiceRequestsPort = os.Getenv("TASKS_SERVICE_REQUESTS_PORT")
 
 	// log.Printf("After os.Getenv() KMS env vars, cfg: %+v", cfg)
 
@@ -126,6 +124,19 @@ func LoadFlagsAndConfig(cfg *Config) error {
 		envVar      string
 	}
 
+	// port number used by each service
+	cfg.TaskDefaultPort = os.Getenv("TASK_DEFAULT_PORT")
+	cfg.TaskInitialRequestPort = os.Getenv("TASK_INITIAL_REQUEST_PORT")
+	cfg.TaskServiceDispatchPort = os.Getenv("TASK_SERVICE_DISPATCH_PORT")
+	// queue name used by each service
+	cfg.TaskDefaultWriteToQ = os.Getenv("TASK_DEFAULT_WRITE_TO_Q")
+	cfg.TaskInitialRequestWriteToQ = os.Getenv("TASK_INITIAL_REQUEST_WRITE_TO_Q")
+	cfg.TaskServiceDispatchWriteToQ = os.Getenv("TASK_SERVICE_DISPATCH_WRITE_TO_Q")
+	// service name of each service
+	cfg.TaskDefaultSvc = os.Getenv("TASK_DEFAULT_SVC")
+	cfg.TaskInitialRequestSvc = os.Getenv("TASK_INITIAL_REQUEST_SVC")
+	cfg.TaskServiceDispatchSvc = os.Getenv("TASK_SERVICE_DISPATCH_SVC")
+
 	bindings := []binding{
 		{structField: "ProjectID", envVar: "PROJECT_ID"},
 		{structField: "StorageLocation", envVar: "STORAGE_LOCATION"},
@@ -133,8 +144,15 @@ func LoadFlagsAndConfig(cfg *Config) error {
 		{structField: "KmsKeyRing", envVar: "KMS_KEYRING"},
 		{structField: "KmsLocation", envVar: "KMS_LOCATION"},
 		{structField: "TasksLocation", envVar: "TASKS_LOCATION"},
-		{structField: "TasksQRequests", envVar: "TASKS_Q_REQUESTS"},
-		{structField: "TasksServiceRequestsPort", envVar: "TASKS_SERVICE_REQUESTS_PORT"},
+		{structField: "TaskDefaultPort", envVar: "TASK_DEFAULT_PORT"},
+		{structField: "TaskInitialRequestPort", envVar: "TASK_INITIAL_REQUEST_PORT"},
+		{structField: "TaskDefaultWriteToQ", envVar: "TASK_DEFAULT_WRITE_TO_Q"},
+		{structField: "TaskInitialRequestWriteToQ", envVar: "TASK_INITIAL_REQUEST_WRITE_TO_Q"},
+		{structField: "TaskDefaultSvc", envVar: "TASK_DEFAULT_SVC"},
+		{structField: "TaskInitialRequestSvc", envVar: "TASK_INITIAL_REQUEST_SVC"},
+		{structField: "TaskServiceDispatchPort", envVar: "TASK_SERVICE_DISPATCH_PORT"},
+		{structField: "TaskServiceDispatchWriteToQ", envVar: "TASK_SERVICE_DISPATCH_WRITE_TO_Q"},
+		{structField: "TaskServiceDispatchSvc", envVar: "TASK_SERVICE_DISPATCH_SVC"},
 	}
 
 	for _, b := range bindings {
@@ -155,22 +173,34 @@ func LoadFlagsAndConfig(cfg *Config) error {
 }
 
 type Config struct {
-	AppName                  string
-	ConfigFile               string
-	Description              string
-	EncryptedBucket          string
-	KmsKey                   string
-	KmsKeyRing               string
-	KmsLocation              string
-	Port                     int
-	ProjectID                string
-	StorageLocation          string
-	TasksLocation            string
-	TasksQRequests           string
-	TasksServiceRequestsPort string
-	Verbose                  bool
-	Version                  string
-	Help                     bool
+	AppName     string
+	ConfigFile  string
+	Description string
+	// Key Management Service for encrypted config
+	EncryptedBucket string
+	KmsKey          string
+	KmsKeyRing      string
+	KmsLocation     string
+	//
+	Port            int
+	ProjectID       string
+	StorageLocation string
+	TasksLocation   string
+	// port number used by each service
+	TaskDefaultPort         string
+	TaskInitialRequestPort        string
+	TaskServiceDispatchPort string
+	// queue name used by each services
+	TaskDefaultWriteToQ         string
+	TaskInitialRequestWriteToQ  string
+	TaskServiceDispatchWriteToQ string
+	// service name of each service
+	TaskDefaultSvc         string
+	TaskInitialRequestSvc        string
+	TaskServiceDispatchSvc string
+	Verbose                 bool
+	Version                 string
+	Help                    bool
 }
 
 var helpText = `

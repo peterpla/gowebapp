@@ -10,13 +10,13 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-var queueName = os.Getenv("TASKS_Q_SERVICE_DISPATCH")
-var serviceName = os.Getenv("TASKS_SVC_SERVICE_DISPATCH")
+var queueName = os.Getenv("TASK_SERVICE_DISPATCH_WRITE_TO_Q")
+var serviceName = os.Getenv("TASK_SERVICE_DISPATCH_SVC")
 
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
 	if serviceName == "" {
-		log.Fatalf("Env var TASKS_Q_SERVICE_DISPATCH undefined, exiting\n")
+		log.Fatalf("Env var TASK_SERVICE_DISPATCH_WRITE_TO_Q undefined, exiting\n")
 	}
 	log.Printf("Enter %s.main\n", serviceName)
 
@@ -31,7 +31,7 @@ func main() {
 	// Allow confirmation the task handling service is running.
 	router.GET("/", indexHandler)
 
-	port := os.Getenv("TASKS_PORT_SERVICE_DISPATCH")
+	port := os.Getenv("TASK_SERVICE_DISPATCH_PORT")
 	if port == "" {
 		port = "8081"
 		log.Printf("Defaulting to port %s", port)

@@ -10,7 +10,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-var service = os.Getenv("TASKS_Q_REQUESTS")
+var service = os.Getenv("TASK_INITIAL_REQUEST_WRITE_TO_Q")
 
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
@@ -27,7 +27,7 @@ func main() {
 	// Allow confirmation the task handling service is running.
 	router.GET("/", indexHandler)
 
-	port := os.Getenv("TASKS_PORT_REQUESTS")
+	port := os.Getenv("TASK_INITIAL_REQUEST_PORT")
 	if port == "" {
 		port = "8081"
 		log.Printf("Defaulting to port %s", port)

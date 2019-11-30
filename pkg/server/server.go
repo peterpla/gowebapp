@@ -26,22 +26,23 @@ type Server struct {
 	Router      http.Handler
 	storageType Type
 	Adder       adding.Service
-	isGAE       bool
+	IsGAE       bool
 }
 
 // NewServer initializes the app-wide Server struct
 func NewServer() *Server {
 	s := &Server{}
-	s.storageType = GCTQueue // TODO: configurable storage type
-	s.isGAE = false
+	s.IsGAE = false
+	s.storageType = Memory // TODO: configurable storage type
 	if os.Getenv("GAE_ENV") != "" {
-		s.isGAE = true
+		s.IsGAE = true
+		s.storageType = GCTQueue
 	}
+	// log.Printf("NewServer before LoadFlagsAndConfig, s: %+v\n", s)
 	s.Cfg = &config.Config{}
 	if err := config.LoadFlagsAndConfig(s.Cfg); err != nil {
 		log.Fatalf("Error loading flags and configuration: %v", err)
 	}
-	log.Printf("NewServer, config: %+v\n", s.Cfg)
 
 	switch s.storageType {
 	case Memory:
@@ -55,6 +56,8 @@ func NewServer() *Server {
 	default:
 		panic("unsupported storageType")
 	}
+
+	log.Printf("NewServer exiting\n... s: %+v\n... s.Cfg: %+v\n", s, s.Cfg)
 	return s
 }
 

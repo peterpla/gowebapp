@@ -4,30 +4,26 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 
 	"github.com/peterpla/gowebapp/pkg/http/rest"
 	"github.com/peterpla/gowebapp/pkg/middleware"
 	"github.com/peterpla/gowebapp/pkg/server"
 )
 
-var queueName = os.Getenv("TASKS_Q_REQUESTS")     // queue to add new requests to
-var serviceName = os.Getenv("TASKS_SVC_REQUESTS") // service we're running in
-
-var srv *server.Server
-
 func main() {
-	srv = server.NewServer()
+	s := server.NewServer() // processes env vars and config file
+	serviceName := s.Cfg.TaskDefaultSvc
+	queueName := s.Cfg.TaskDefaultWriteToQ
 
-	newRouter := rest.Routes(srv.Adder)
+	newRouter := rest.Routes(s.Adder)
+	s.Router = newRouter
 
-	port := os.Getenv("TASKS_PORT_REQUESTS") // Google App Engine complains if "PORT" env var isn't checked
-	if port == "" {
-		port = strconv.Itoa(srv.Cfg.Port)
+	port := os.Getenv("PORT") // Google App Engine complains if "PORT" env var isn't checked
+	if !s.IsGAE {
+		port = os.Getenv("TASK_DEFAULT_PORT")
 	}
-	log.Printf("Service %s listening on port %s, requests will be added to queue %s", serviceName, port, queueName)
 
-	srv.Router = newRouter
+	log.Printf("Service %s listening on port %s, requests will be added to queue %s", serviceName, port, queueName)
 	err := http.ListenAndServe(":"+port, middleware.LogReqResp(newRouter))
 
 	log.Printf("Error return from http.ListenAndServe: %v", err)

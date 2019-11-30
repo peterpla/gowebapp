@@ -25,7 +25,7 @@ env_variables:
   KMS_KEYRING: devkeyring
   KMS_KEY: config
   TASKS_LOCATION: "us-west2"
-  TASKS_Q_REQUESTS: "InitialRequest"
-  TASKS_SVC_REQUESTS: "default"
-  TASKS_PORT_REQUESTS: ""
+  TASK_DEFAULT_SVC: "default"
+  TASK_DEFAULT_WRITE_TO_Q: "InitialRequest"
+  TASK_DEFAULT_PORT: 8080
   
