@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -8,22 +10,27 @@ import (
 	"os"
 
 	"github.com/julienschmidt/httprouter"
+
+	"github.com/peterpla/gowebapp/pkg/adding"
+	"github.com/peterpla/gowebapp/pkg/middleware"
+	"github.com/peterpla/gowebapp/pkg/server"
 )
 
-var queueName = os.Getenv("TASK_SERVICE_DISPATCH_WRITE_TO_Q")
-var serviceName = os.Getenv("TASK_SERVICE_DISPATCH_SVC")
+var serviceName, queueName string
 
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
-	if serviceName == "" {
-		log.Fatalf("Env var TASK_SERVICE_DISPATCH_WRITE_TO_Q undefined, exiting\n")
-	}
-	log.Printf("Enter %s.main\n", serviceName)
+	// log.Printf("Enter service-dispatch.main\n")
+
+	s := server.NewServer() // processes env vars and config file
+	serviceName := s.Cfg.TaskServiceDispatchSvc
+	queueName := s.Cfg.TaskServiceDispatchWriteToQ
 
 	router := httprouter.New()
+	s.Router = router
 
 	// Default endpoint Cloud Tasks sends to is /task_handler
-	router.POST("/task_handler", taskHandler())
+	router.POST("/task_handler", taskHandler(s.Adder, serviceName))
 
 	// custom NotFound handler
 	router.NotFound = http.HandlerFunc(myNotFound)
@@ -31,14 +38,17 @@ func main() {
 	// Allow confirmation the task handling service is running.
 	router.GET("/", indexHandler)
 
-	port := os.Getenv("TASK_SERVICE_DISPATCH_PORT")
+	port := os.Getenv("PORT") // Google App Engine complains if "PORT" env var isn't checked
+	if !s.IsGAE {
+		port = os.Getenv("TASK_SERVICE_DISPATCH_PORT")
+	}
 	if port == "" {
-		port = "8081"
+		port = s.Cfg.TaskInitialRequestPort
 		log.Printf("Defaulting to port %s", port)
 	}
 
-	log.Printf("Service %s listening on port %s for tasks from queue %s", serviceName, port, queueName)
-	log.Fatal(http.ListenAndServe(":"+port, router))
+	log.Printf("Service %s listening on port %s, requests will be added to queue %s", serviceName, port, queueName)
+	log.Fatal(http.ListenAndServe(":"+port, middleware.LogReqResp(router)))
 }
 
 // indexHandler responds to requests with "service running"
@@ -54,12 +64,12 @@ func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 }
 
 // taskHandler processes task requests.
-func taskHandler() httprouter.Handle {
-	// log.Printf("%s.taskHandler - enter/exit\n", serviceName)
+func taskHandler(a adding.Service, serviceName string) httprouter.Handle {
+	log.Printf("%s.taskHandler - enter/exit\n", serviceName)
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		// log.Printf("%s.taskHandler - enter handler\n", serviceName)
-		// log.Printf("request: %+v\n", r)
-		// log.Printf("params: %+v\n", p)
+		// log.Printf("... request: %+v\n", r)
+		// log.Printf("... params: %+v\n", p)
 
 		t, ok := r.Header["X-Appengine-Taskname"]
 		if !ok || len(t[0]) == 0 {
@@ -73,7 +83,7 @@ func taskHandler() httprouter.Handle {
 
 		// Pull useful headers from Task request.
 		q, ok := r.Header["X-Appengine-Queuename"]
-		queueName := ""
+		queueName = ""
 		if ok {
 			queueName = q[0]
 		}
@@ -81,14 +91,32 @@ func taskHandler() httprouter.Handle {
 		// Extract the request body for further task details.
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			// log.Printf("%s.main, ReadAll error: %v", serviceName, err)
+			log.Printf("%s.main, ReadAll error: %v", serviceName, err)
 			http.Error(w, "Internal Error", http.StatusInternalServerError)
 			return
 		}
 
+		// decode incoming request
+		var incomingRequest adding.Request
+
+		decoder := json.NewDecoder(bytes.NewReader(body))
+		err = decoder.Decode(&incomingRequest)
+		if err != nil {
+			log.Printf("%s.taskHandler, json.Decode error: %v", serviceName, err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		log.Printf("%s.taskHandler - decoded request: %+v\n", serviceName, incomingRequest)
+
+		// TODO: validation incoming request
+
+		// TODO: create task on TranscriptionGCP queue with updated request
+		newRequest := incomingRequest
+		a.AddRequest(newRequest)
+
 		// Log & output details of the task.
-		output := fmt.Sprintf("%s.taskHandler, completed: queue %s, task %s\n... payload: %s",
-			serviceName, queueName, taskName, string(body))
+		output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q\n... payload: %+v",
+			serviceName, queueName, taskName, newRequest)
 		log.Println(output)
 
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.

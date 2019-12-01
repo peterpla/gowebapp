@@ -21,7 +21,7 @@ func Routes(a adding.Service) http.Handler {
 }
 
 // addRequest returns a handler for POST /requests
-func addRequest(s adding.Service) httprouter.Handle {
+func addRequest(a adding.Service) httprouter.Handle {
 	// log.Printf("rest.AddRequest - enter/exit")
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		// log.Printf("rest.AddRequest handler - enter\n")
@@ -35,7 +35,7 @@ func addRequest(s adding.Service) httprouter.Handle {
 		}
 		log.Printf("rest.AddRequest handler - decoded request: %+v\n", newRequest)
 
-		s.AddRequest(newRequest)
+		a.AddRequest(newRequest)
 
 		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "application/json")

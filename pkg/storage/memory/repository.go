@@ -1,8 +1,6 @@
 package memory
 
 import (
-	"log"
-
 	"github.com/peterpla/gowebapp/pkg/adding"
 )
 
@@ -29,7 +27,7 @@ func (m *Storage) AddRequest(req adding.Request) error {
 	// (if CustomConfig == True) or defaults from customer profile
 
 	m.requests = append(m.requests, newRequest)
-	log.Printf("memory.AddRequest - exit, requests: %+v\n", m.requests)
+	// log.Printf("memory.AddRequest - exit, requests: %+v\n", m.requests)
 
 	return nil
 }

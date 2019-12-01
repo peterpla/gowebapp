@@ -57,7 +57,7 @@ func NewServer() *Server {
 		panic("unsupported storageType")
 	}
 
-	log.Printf("NewServer exiting\n... s: %+v\n... s.Cfg: %+v\n", s, s.Cfg)
+	// log.Printf("NewServer exiting\n... s: %+v\n... s.Cfg: %+v\n", s, s.Cfg)
 	return s
 }
 

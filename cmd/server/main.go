@@ -22,6 +22,10 @@ func main() {
 	if !s.IsGAE {
 		port = os.Getenv("TASK_DEFAULT_PORT")
 	}
+	if port == "" {
+		port = s.Cfg.TaskDefaultPort
+		log.Printf("Defaulting to port %s", port)
+	}
 
 	log.Printf("Service %s listening on port %s, requests will be added to queue %s", serviceName, port, queueName)
 	err := http.ListenAndServe(":"+port, middleware.LogReqResp(newRouter))
