@@ -2,6 +2,21 @@
 
 ## An HTTP API for automated sales call transcription
 
+## Checklist to add a new pipeline stage
+
+- Create a new folder under `cmd` with the same name as the service (using Go naming conventions, e.g., for `initial-request` service, the folder name would be `initialRequest`)
+- Copy and paste `main.go` from `initialRequest`, modify:
+  - in `init()` modify `logPrefix`
+  - in `main()` modify `prefix`
+  - in `taskHandler()` implement appropriate task handling for the new pipeline stage - **the heavy lifting**
+- Copy and paste `app.yaml` from `initialRequest`, modify:
+  - under `env_variables` rename the several `TASK_` lines and give them appropriate values
+    - e.g., the `initial-request` service has env vars that begin with  `TASK_INITIAL_REQUEST`; change the names of all of those to `TASK_`your_service_name, and set the values appropriately
+- update `.bash_profile` or equivalent with the env vars above, to run locally
+- update `config.yaml` as needed
+  - Ensure both `.gitignore` and `.gcloudignore` exclude `config.yaml`
+  - The script `gupload_encrypted.sh` will encrypt `config.yaml` and copy it to Google Cloud Storage in the bucket specified by the `ENCRYPTED_BUCKET` env var
+
 ## Language
 
 - **Actionable Sales Information**: data extracted during transcription processing that enables the customer to pursue sales opportunities

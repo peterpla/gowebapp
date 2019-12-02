@@ -6,21 +6,27 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestLoadFlagsAndConfig(t *testing.T) {
+func TestGetConfig(t *testing.T) {
 
 	var cfg Config
 
 	defaultResult := Config{
-		AppName:     "gowebapp",
-		ConfigFile:  "config.yaml",
-		Description: "Describe gowebapp here",
+		Adder:           nil,
+		AppName:         "gowebapp",
+		ConfigFile:      "config.yaml",
+		Description:     "Describe gowebapp here",
+		IsGAE:           false,
+		QueueName:       "",
+		Router:          nil,
+		ServiceName:     "",
+		NextServiceName: "",
+		StorageType:     Memory,
 		// Key Management Service for encrypted config
 		EncryptedBucket: "elated-practice-224603-gowebapp-secret",
 		KmsKey:          "config",
 		KmsKeyRing:      "devkeyring",
 		KmsLocation:     "us-west2",
 		//
-		Port:            8080,
 		ProjectID:       "elated-practice-224603",
 		StorageLocation: "us-west2",
 		TasksLocation:   "us-west2",
@@ -33,9 +39,13 @@ func TestLoadFlagsAndConfig(t *testing.T) {
 		TaskInitialRequestWriteToQ:  "ServiceDispatch",
 		TaskServiceDispatchWriteToQ: "TranscriptionGCP",
 		// service name of each service
-		TaskDefaultSvc:         "default",
-		TaskInitialRequestSvc:  "initial-request",
-		TaskServiceDispatchSvc: "service-dispatch",
+		TaskDefaultSvcName:         "default",
+		TaskInitialRequestSvcName:  "initial-request",
+		TaskServiceDispatchSvcName: "service-dispatch",
+		// next service in the chain to handle requests
+		TaskDefaultNextSvcToHandleReq:         "initial-request",
+		TaskInitialRequestNextSvcToHandleReq:  "service-dispatch",
+		TaskServiceDispatchNextSvcToHandleReq: "transcription-gcp",
 		//
 		Verbose: false,
 		Version: "0.1.0",
@@ -43,11 +53,14 @@ func TestLoadFlagsAndConfig(t *testing.T) {
 	}
 
 	// guard against calling twice, which will trigger panic with "flag redefined"
-	if cfg.Port == 0 { // uninitialized port value
-		if err := LoadFlagsAndConfig(&cfg); err != nil {
-			t.Fatalf("error from LoadFlagsAndConfig: %v", err)
+	if cfg.AppName == "" { // uninitialized
+		if err := GetConfig(&cfg); err != nil {
+			t.Fatalf("error from GetConfig: %v", err)
 		}
-		// if !reflect.DeepEqual(defaultResult, cfg) {
+
+		// CHEAT: nil-out the actual .Adder
+		cfg.Adder = nil
+
 		if !cmp.Equal(defaultResult, cfg) {
 			t.Fatalf("expected %+v, got %+v", defaultResult, cfg)
 		}

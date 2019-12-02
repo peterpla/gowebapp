@@ -18,6 +18,7 @@ env_variables:
   KMS_KEYRING: devkeyring
   KMS_KEY: config
   TASKS_LOCATION: "us-west2"
-  TASK_SERVICE_DISPATCH_SVC: "service-dispatch"
+  TASK_SERVICE_DISPATCH_SERVICENAME: "service-dispatch"
   TASK_SERVICE_DISPATCH_WRITE_TO_Q: "TranscriptionGCP"
+  TASK_SERVICE_DISPATCH_SVC_TO_HANDLE_REQ: "transcription-gcp"
   TASK_SERVICE_DISPATCH_PORT: 8082

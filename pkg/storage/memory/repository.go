@@ -1,6 +1,8 @@
 package memory
 
 import (
+	"log"
+
 	"github.com/peterpla/gowebapp/pkg/adding"
 )
 
@@ -14,8 +16,6 @@ type Storage struct {
 func (m *Storage) AddRequest(req adding.Request) error {
 	// log.Printf("memory.AddRequest - enter\n")
 
-	// TODO: check for duplicate?
-
 	newRequest := adding.Request{
 		RequestID:    len(m.requests) + 1,
 		CustomerID:   req.CustomerID,
@@ -27,7 +27,7 @@ func (m *Storage) AddRequest(req adding.Request) error {
 	// (if CustomConfig == True) or defaults from customer profile
 
 	m.requests = append(m.requests, newRequest)
-	// log.Printf("memory.AddRequest - exit, requests: %+v\n", m.requests)
+	log.Printf("memory.AddRequest exiting, requests: %+v\n", m.requests)
 
 	return nil
 }

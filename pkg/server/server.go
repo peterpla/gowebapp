@@ -27,6 +27,9 @@ type Server struct {
 	storageType Type
 	Adder       adding.Service
 	IsGAE       bool
+	ServiceName string
+	QueueName   string
+	Port        string
 }
 
 // NewServer initializes the app-wide Server struct
@@ -38,11 +41,11 @@ func NewServer() *Server {
 		s.IsGAE = true
 		s.storageType = GCTQueue
 	}
-	// log.Printf("NewServer before LoadFlagsAndConfig, s: %+v\n", s)
+	// log.Printf("NewServer before GetConfig, s: %+v\n", s)
 	s.Cfg = &config.Config{}
-	if err := config.LoadFlagsAndConfig(s.Cfg); err != nil {
-		log.Fatalf("Error loading flags and configuration: %v", err)
-	}
+	// if err := config.GetConfig(s.Cfg); err != nil {
+	// 	log.Fatalf("Error loading flags and configuration: %v", err)
+	// }
 
 	switch s.storageType {
 	case Memory:

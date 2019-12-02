@@ -10,27 +10,46 @@ import (
 	"os"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/spf13/viper"
 
 	"github.com/peterpla/gowebapp/pkg/adding"
+	"github.com/peterpla/gowebapp/pkg/config"
 	"github.com/peterpla/gowebapp/pkg/middleware"
-	"github.com/peterpla/gowebapp/pkg/server"
+	"github.com/peterpla/gowebapp/pkg/serviceInfo"
 )
 
-var serviceName, queueName string
+var Config config.Config
+
+func init() {
+	logPrefix := "service-dispatch.main.init(),"
+	if err := config.GetConfig(&Config); err != nil {
+		msg := fmt.Sprintf(logPrefix+" GetConfig error: %v", err)
+		panic(msg)
+	}
+	// log.Printf(logPrefix+" Config: %+v", Config)
+}
 
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
-	// log.Printf("Enter service-dispatch.main\n")
+	log.Printf("Enter initial-request.main, Config: %+v\n", Config)
 
-	s := server.NewServer() // processes env vars and config file
-	serviceName := s.Cfg.TaskServiceDispatchSvc
-	queueName := s.Cfg.TaskServiceDispatchWriteToQ
+	// set ServiceName and QueueName appropriately
+	prefix := "TaskServiceDispatch"
+	Config.ServiceName = viper.GetString(prefix + "SvcName")
+	Config.QueueName = viper.GetString(prefix + "WriteToQ")
+	Config.NextServiceName = viper.GetString(prefix + "NextSvcToHandleReq")
+
+	// make ServiceName and QueueName available to other packages
+	serviceInfo.RegisterServiceName(Config.ServiceName)
+	serviceInfo.RegisterQueueName(Config.QueueName)
+	serviceInfo.RegisterNextServiceName(Config.NextServiceName)
+	log.Println(serviceInfo.DumpServiceInfo())
 
 	router := httprouter.New()
-	s.Router = router
+	Config.Router = router
 
 	// Default endpoint Cloud Tasks sends to is /task_handler
-	router.POST("/task_handler", taskHandler(s.Adder, serviceName))
+	router.POST("/task_handler", taskHandler(Config.Adder))
 
 	// custom NotFound handler
 	router.NotFound = http.HandlerFunc(myNotFound)
@@ -39,35 +58,37 @@ func main() {
 	router.GET("/", indexHandler)
 
 	port := os.Getenv("PORT") // Google App Engine complains if "PORT" env var isn't checked
-	if !s.IsGAE {
-		port = os.Getenv("TASK_SERVICE_DISPATCH_PORT")
+	if !Config.IsGAE {
+		port = viper.GetString(prefix + "Port")
 	}
 	if port == "" {
-		port = s.Cfg.TaskInitialRequestPort
-		log.Printf("Defaulting to port %s", port)
+		panic("PORT undefined")
 	}
 
-	log.Printf("Service %s listening on port %s, requests will be added to queue %s", serviceName, port, queueName)
+	log.Printf("Service %s listening on port %s, requests will be added to queue %s\n",
+		Config.ServiceName, port, Config.QueueName)
 	log.Fatal(http.ListenAndServe(":"+port, middleware.LogReqResp(router)))
 }
 
 // indexHandler responds to requests with "service running"
 func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	log.Printf("Enter %s.indexHandler\n", serviceName)
+	serviceName := Config.ServiceName
+	// log.Printf("Enter %s.indexHandler\n", serviceName)
 	if r.URL.Path != "/" {
 		log.Printf("%s.indexHandler, r.URL.Path: %s, will respond NotFound\n", serviceName, r.URL.Path)
 		http.NotFound(w, r)
 		return
 	}
 	// indicate service is running
-	fmt.Fprintf(w, "%s service running\n", serviceName)
+	fmt.Fprintf(w, "%q service running\n", serviceName)
 }
 
 // taskHandler processes task requests.
-func taskHandler(a adding.Service, serviceName string) httprouter.Handle {
+func taskHandler(a adding.Service) httprouter.Handle {
+	serviceName := Config.ServiceName
 	log.Printf("%s.taskHandler - enter/exit\n", serviceName)
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		// log.Printf("%s.taskHandler - enter handler\n", serviceName)
+		log.Printf("%s.taskHandler - enter handler\n", serviceName)
 		// log.Printf("... request: %+v\n", r)
 		// log.Printf("... params: %+v\n", p)
 
@@ -83,9 +104,11 @@ func taskHandler(a adding.Service, serviceName string) httprouter.Handle {
 
 		// Pull useful headers from Task request.
 		q, ok := r.Header["X-Appengine-Queuename"]
-		queueName = ""
+		queueName := ""
 		if ok {
 			queueName = q[0]
+		} else {
+			queueName = Config.QueueName
 		}
 
 		// Extract the request body for further task details.
@@ -123,11 +146,12 @@ func taskHandler(a adding.Service, serviceName string) httprouter.Handle {
 		// For example, http.Error(w, "Internal Server Error: Task Processing", http.StatusInternalServerError)
 		w.WriteHeader(http.StatusOK)
 
-		// log.Printf("%s.taskHandler - exit hander\n", serviceName)
+		log.Printf("%s.taskHandler - exit hander\n", serviceName)
 	}
 }
 
 func myNotFound(w http.ResponseWriter, r *http.Request) {
+	serviceName := Config.ServiceName
 	log.Printf("%s.myNotFound, request for %s not routed\n", serviceName, r.URL.Path)
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
