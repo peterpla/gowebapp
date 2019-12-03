@@ -71,7 +71,6 @@ func main() {
 
 // addRequest returns a handler for POST /requests
 func addRequest(a adding.Service) httprouter.Handle {
-	serviceName := Config.ServiceName
 	// log.Printf("%s.main.AddRequest - enter/exit", serviceName)
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		// log.Printf("%s.main.AddRequest handler - enter\n", serviceName)
@@ -83,7 +82,7 @@ func addRequest(a adding.Service) httprouter.Handle {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		log.Printf("%s.taskHandler - decoded request: %+v\n", serviceName, newRequest)
+		// log.Printf("%s.taskHandler - decoded request: %+v\n", Config.ServiceName, newRequest)
 
 		a.AddRequest(newRequest)
 

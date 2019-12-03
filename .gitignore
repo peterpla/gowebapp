@@ -7,6 +7,9 @@
 
 # Sensitive environment variable files
 *.env
+.env.yaml
+config.yaml
+config.yaml.enc
 
 # Test binary, build with `go test -c`
 *.test

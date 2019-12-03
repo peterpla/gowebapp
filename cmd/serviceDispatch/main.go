@@ -129,7 +129,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		log.Printf("%s.taskHandler - decoded request: %+v\n", serviceName, incomingRequest)
+		// log.Printf("%s.taskHandler - decoded request: %+v\n", serviceName, incomingRequest)
 
 		// TODO: validation incoming request
 
@@ -138,7 +138,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		a.AddRequest(newRequest)
 
 		// Log & output details of the task.
-		output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q\n... payload: %+v",
+		output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
 			serviceName, queueName, taskName, newRequest)
 		log.Println(output)
 

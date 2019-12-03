@@ -21,7 +21,7 @@ import (
 var Config config.Config
 
 func init() {
-	logPrefix := "initial-request.main.init(),"
+	logPrefix := "transcription-gcp.main.init(),"
 	if err := config.GetConfig(&Config); err != nil {
 		msg := fmt.Sprintf(logPrefix+" GetConfig error: %v", err)
 		panic(msg)
@@ -31,10 +31,10 @@ func init() {
 
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
-	// log.Printf("Enter initial-request.main, Config: %+v\n", Config)
+	// log.Printf("Enter transcription-gcp.main, Config: %+v\n", Config)
 
 	// set ServiceName and QueueName appropriately
-	prefix := "TaskInitialRequest"
+	prefix := "TaskTranscriptionGCP"
 	Config.ServiceName = viper.GetString(prefix + "SvcName")
 	Config.QueueName = viper.GetString(prefix + "WriteToQ")
 	Config.NextServiceName = viper.GetString(prefix + "NextSvcToHandleReq")
@@ -43,7 +43,7 @@ func main() {
 	serviceInfo.RegisterServiceName(Config.ServiceName)
 	serviceInfo.RegisterQueueName(Config.QueueName)
 	serviceInfo.RegisterNextServiceName(Config.NextServiceName)
-	// log.Println(serviceInfo.DumpServiceInfo())
+	log.Println(serviceInfo.DumpServiceInfo())
 
 	router := httprouter.New()
 	Config.Router = router
@@ -89,7 +89,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 	// log.Printf("%s.taskHandler - enter/exit\n", serviceName)
 
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		log.Printf("%s.taskHandler, request: %+v, params: %+v\n", serviceName, r, p)
+		// log.Printf("%s.taskHandler, request: %+v, params: %+v\n", serviceName, r, p)
 
 		// var taskName string
 		t, ok := r.Header["X-Appengine-Taskname"]
@@ -102,14 +102,14 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			// http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
 			// return
 		}
-		// taskName := t[0]
+		taskName := t[0]
 
 		// Pull useful headers from Task request.
-		// q, ok := r.Header["X-Appengine-Queuename"]
-		// queueName := ""
-		// if ok {
-		// 	queueName = q[0]
-		// }
+		q, ok := r.Header["X-Appengine-Queuename"]
+		queueName := ""
+		if ok {
+			queueName = q[0]
+		}
 
 		// Extract the request body for further task details.
 		body, err := ioutil.ReadAll(r.Body)
@@ -130,18 +130,18 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		// log.Printf("%s.taskHandler - decoded request: %+v\n", serviceName, incomingRequest)
+		log.Printf("%s.taskHandler - decoded request: %+v\n", serviceName, incomingRequest)
 
 		// TODO: validation incoming request
 
-		// TODO: create task on ServiceDispatch queue with updated request
+		// TODO: create task on the next pipeline stage's queue with updated request
 		newRequest := incomingRequest
 		a.AddRequest(newRequest)
 
 		// Log & output details of the created task.
-		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
-		// 	serviceName, queueName, taskName, newRequest)
-		// log.Println(output)
+		output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
+			serviceName, queueName, taskName, newRequest)
+		log.Println(output)
 
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.
 		// For example, http.Error(w, "Internal Server Error: Task Processing", http.StatusInternalServerError)

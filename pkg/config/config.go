@@ -83,6 +83,11 @@ func GetConfig(cfg *Config) error {
 		{structField: "TaskServiceDispatchWriteToQ", envVar: "TASK_SERVICE_DISPATCH_WRITE_TO_Q"},
 		{structField: "TaskServiceDispatchNextSvcToHandleReq", envVar: "TASK_SERVICE_DISPATCH_SVC_TO_HANDLE_REQ"},
 		{structField: "TaskServiceDispatchPort", envVar: "TASK_SERVICE_DISPATCH_PORT"},
+		//
+		{structField: "TaskTranscriptionGCPSvcName", envVar: "TASK_TRANSCRIPTION_GCP_SERVICENAME"},
+		{structField: "TaskTranscriptionGCPWriteToQ", envVar: "TASK_TRANSCRIPTION_GCP_WRITE_TO_Q"},
+		{structField: "TaskTranscriptionGCPNextSvcToHandleReq", envVar: "TASK_TRANSCRIPTION_GCP_SVC_TO_HANDLE_REQ"},
+		{structField: "TaskTranscriptionGCPPort", envVar: "TASK_TRANSCRIPTION_GCP_PORT"},
 	}
 
 	for _, b := range bindings {
@@ -206,21 +211,25 @@ type Config struct {
 	StorageLocation string
 	TasksLocation   string
 	// port number used by each service
-	TaskDefaultPort         string
-	TaskInitialRequestPort  string
-	TaskServiceDispatchPort string
+	TaskDefaultPort          string
+	TaskInitialRequestPort   string
+	TaskServiceDispatchPort  string
+	TaskTranscriptionGCPPort string
 	// queue name used by each services
-	TaskDefaultWriteToQ         string
-	TaskInitialRequestWriteToQ  string
-	TaskServiceDispatchWriteToQ string
+	TaskDefaultWriteToQ          string
+	TaskInitialRequestWriteToQ   string
+	TaskServiceDispatchWriteToQ  string
+	TaskTranscriptionGCPWriteToQ string
 	// service name of each service
-	TaskDefaultSvcName         string
-	TaskInitialRequestSvcName  string
-	TaskServiceDispatchSvcName string
+	TaskDefaultSvcName          string
+	TaskInitialRequestSvcName   string
+	TaskServiceDispatchSvcName  string
+	TaskTranscriptionGCPSvcName string
 	// next service in the chain to handle requests
-	TaskDefaultNextSvcToHandleReq         string
-	TaskInitialRequestNextSvcToHandleReq  string
-	TaskServiceDispatchNextSvcToHandleReq string
+	TaskDefaultNextSvcToHandleReq          string
+	TaskInitialRequestNextSvcToHandleReq   string
+	TaskServiceDispatchNextSvcToHandleReq  string
+	TaskTranscriptionGCPNextSvcToHandleReq string
 	// miscellaneous
 	Verbose bool
 	Version string

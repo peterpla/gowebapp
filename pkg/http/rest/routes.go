@@ -2,7 +2,6 @@ package rest
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -33,7 +32,7 @@ func addRequest(a adding.Service) httprouter.Handle {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		log.Printf("rest.AddRequest handler - decoded request: %+v\n", newRequest)
+		// log.Printf("rest.AddRequest handler - decoded request: %+v\n", newRequest)
 
 		a.AddRequest(newRequest)
 

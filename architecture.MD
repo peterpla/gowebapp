@@ -10,12 +10,24 @@
   - in `main()` modify `prefix`
   - in `taskHandler()` implement appropriate task handling for the new pipeline stage - **the heavy lifting**
 - Copy and paste `app.yaml` from `initialRequest`, modify:
-  - under `env_variables` rename the several `TASK_` lines and give them appropriate values
+  - change `service:` to the new stage's service name (convention is to use the Cloud Tasks queue name but all lower case and with dashes between words)
+  - under `env_variables:` change the *names* of the several `TASK_` lines and give them appropriate values
     - e.g., the `initial-request` service has env vars that begin with  `TASK_INITIAL_REQUEST`; change the names of all of those to `TASK_`your_service_name, and set the values appropriately
-- update `.bash_profile` or equivalent with the env vars above, to run locally
-- update `config.yaml` as needed
+  - change the values of the `TASK_` env vars as needed
+- in `pkg/config/config.go`:
+  - at bottom, update the `Config struct` definition to add the "friendly name" for the env vars created above
+  - at top, update the `[]binding`: for each env var, pair the friendly name just created with the env var name created earlier
+- to run locally, update `.bash_profile` or equivalent with the env vars above
+  - restart VC Code or equivalent after changing `.bash_profile` so those changes take effect
+  - obviously the env var names and values in `app.yaml` and `.bash_profile` should match
+- if needed, update `config.yaml` with configuration info that will be stored encrypted and read by `GetConfig()`
   - Ensure both `.gitignore` and `.gcloudignore` exclude `config.yaml`
   - The script `gupload_encrypted.sh` will encrypt `config.yaml` and copy it to Google Cloud Storage in the bucket specified by the `ENCRYPTED_BUCKET` env var
+- update `_test.go` files including `pkg/config/config_test.go` to include the new `Config struct` members in `defaultResult`
+- **IMPORTANT:** run `pkg/config/config_test.go` to ensure the friendly names and env var names all are correct. **Mistakes here are common sources of early deployment failures!**
+- modify `gdeploy.sh` to deploy the new pipeline stage's service by adding the path to the service's `app.yaml`
+- run `bash ./gdeploy.sh` to deploy all services
+  - ... or copy and paste the `gsutil -m rm`... command to remove old files, and copy, paste and edit the `gcloud app deploy`... command to deploy only the new service
 
 ## Language
 
