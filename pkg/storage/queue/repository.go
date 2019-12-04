@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 	"github.com/spf13/viper"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
 
 	"github.com/peterpla/gowebapp/pkg/adding"
+	"github.com/peterpla/gowebapp/pkg/serviceInfo"
 )
 
 // Store data in Google Cloud Tasks queue
@@ -23,29 +25,35 @@ type GCT struct {
 func (g *GCT) AddRequest(req adding.Request) error {
 	// log.Printf("queue.AddRequest - enter\n")
 
-	// Build the Task queue path.
-	projectID := viper.GetString("projectID")
-	locationID := viper.GetString("tasksLocation")
-	queueID := viper.GetString("tasksQRequests")
+	// assemble the Task queue path components
+	projectID := viper.GetString("ProjectID")
+	locationID := viper.GetString("TasksLocation")
+	queueName := serviceInfo.GetQueueName()
+	serviceToHandleRequest := serviceInfo.GetNextServiceName()
+	endpoint := "/task_handler"
 
 	// JSON-encode the incoming req as the payload message
 	requestJSON, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("queue.AddRequest: %v", err)
 	}
-	// log.Printf("queue.AddRequest, Body: %q\n", requestJSON)
+	// log.Printf("queue.AddRequest, Body: %s\n", string(requestJSON))
 
-	taskID, err := g.AddToCloudTasksQ(projectID, locationID, queueID, "w-initial-request", "/task_handler", requestJSON)
+	// taskID, err := g.AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandleRequest, endpoint, requestJSON)
+	_, err = g.AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandleRequest, endpoint, requestJSON)
 	if err != nil {
 		return err
 	}
-	log.Printf("queue.AddRequest - taskID %d created, exit\n", taskID)
+	// log.Printf("queue.AddRequest - taskID %d created, exit\n", taskID)
 
 	return nil
 }
 
 // AddToCloudTasksQ handles the Cloud Tasks-specifics to add to a queue
-func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceName, handlerEndpoint string, requestJSON []byte) (taskID int, err error) {
+func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandleRequest, handlerEndpoint string, requestJSON []byte) (taskID int, err error) {
+	// log.Printf("AddToCloudTasksQ entered, projectID: %q, locationID: %q, queueName: %q, serviceToHandleRequest: %q, handlerEndpoint: %q, requestJSON: %q\n",
+	// 	projectID, locationID, queueName, serviceToHandleRequest, handlerEndpoint, string(requestJSON))
+
 	// Create a new Cloud Tasks client instance.
 	// See https://godoc.org/cloud.google.com/go/cloudtasks/apiv2
 	ctx := context.Background()
@@ -54,9 +62,8 @@ func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceName, ha
 		return 0, fmt.Errorf("NewClient: %v", err)
 	}
 
-	queuePath := fmt.Sprintf("projects/%s/locations/%s/queues/%s",
-		projectID, locationID, queueName)
-	// log.Printf("queue.AddToCloudTasksQ, queuePath: %q\n", queuePath)
+	queuePath := fmt.Sprintf("projects/%s/locations/%s/queues/%s", projectID, locationID, queueName)
+	// log.Printf("queue.AddToCloudTasksQ, queuePath: %q, service: %q\n", queuePath, serviceToHandleRequest)
 
 	// Build the Task payload.
 	// https://godoc.org/google.golang.org/genproto/googleapis/cloud/tasks/v2#CreateTaskRequest
@@ -68,9 +75,9 @@ func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceName, ha
 				AppEngineHttpRequest: &taskspb.AppEngineHttpRequest{
 					HttpMethod: taskspb.HttpMethod_POST,
 					AppEngineRouting: &taskspb.AppEngineRouting{
-						Service: "w-initial-request",
+						Service: serviceToHandleRequest,
 					},
-					RelativeUri: "/task_handler",
+					RelativeUri: handlerEndpoint,
 					Body:        requestJSON,
 				},
 			},
@@ -81,14 +88,17 @@ func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceName, ha
 	if err != nil {
 		return 0, fmt.Errorf("queue.AddRequest: %v", err)
 	}
-	// TODO: isolate taskname (number) at end of createdTask.name (path)
-	taskID, err = strconv.Atoi("012345")
+	// returned Task struct: https://godoc.org/google.golang.org/genproto/googleapis/cloud/tasks/v2#Task
+
+	// TODO: isolate taskname (number), the last component of createdTask.name
+	i := strings.LastIndex(createdTask.Name, "/")
+	taskID, err = strconv.Atoi(createdTask.Name[i+1:])
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("strconv.Atoi: %v", err)
 	}
 
-	log.Printf("queue.AddRequest, added to %s\n... createdTask: %+v\n... Body: %s",
-		queuePath, createdTask, createdTask.GetAppEngineHttpRequest().GetBody())
+	log.Printf("queue.AddToCloudTasksQ, task %d created: %+v, on queuePath: %q, Body: %s",
+		taskID, createdTask, queuePath, createdTask.GetAppEngineHttpRequest().GetBody())
 
 	return taskID, nil
 }

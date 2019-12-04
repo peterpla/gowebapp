@@ -1,0 +1,11 @@
+name: projects/elated-practice-224603/locations/us-west2/queues/InitialRequest
+rateLimits:
+  maxBurstSize: 100
+  maxConcurrentDispatches: 1000
+  maxDispatchesPerSecond: 500.0
+retryConfig:
+  maxAttempts: 100
+  maxBackoff: 3600s
+  maxDoublings: 16
+  minBackoff: 0.100s
+state: RUNNING

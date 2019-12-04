@@ -1,6 +1,6 @@
 # https://cloud.google.com/appengine/docs/standard/go113/config/appref
 runtime: go113
-service: w-initial-request
+service: transcript-qa
 
 handlers:
 - url: /.*
@@ -18,5 +18,7 @@ env_variables:
   KMS_KEYRING: devkeyring
   KMS_KEY: config
   TASKS_LOCATION: "us-west2"
-  TASKS_Q_REQUESTS: "wInitialRequest"
-  TASKS_SERVICE_REQUESTS_PORT: 8081
+  TASK_TRANSCRIPT_QA_SERVICENAME: "transcript-qa"
+  TASK_TRANSCRIPT_QA_WRITE_TO_Q: "TranscriptQAComplete"
+  TASK_TRANSCRIPT_QA_SVC_TO_HANDLE_REQ: "transcript-qa-complete"
+  TASK_TRANSCRIPT_QA_PORT: 8085

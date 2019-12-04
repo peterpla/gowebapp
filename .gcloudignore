@@ -17,9 +17,11 @@
 # Visual Studio Code
 .vscode/
 
-# application exclusions
-config.yaml
+# Sensitive environment variable files
+*.env
 .env.yaml
+config.yaml
+config.yaml.enc
 
 # Binaries for programs and plugins
 *.exe

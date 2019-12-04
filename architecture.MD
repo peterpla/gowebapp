@@ -2,6 +2,33 @@
 
 ## An HTTP API for automated sales call transcription
 
+## Checklist to add a new pipeline stage
+
+- Create a new folder under `cmd` with the same name as the service (using Go naming conventions, e.g., for `initial-request` service, the folder name would be `initialRequest`)
+- Copy and paste `main.go` from `initialRequest`, modify:
+  - in `init()` modify `logPrefix`
+  - in `main()` modify `prefix`
+  - in `taskHandler()` implement appropriate task handling for the new pipeline stage - **the heavy lifting**
+- Copy and paste `app.yaml` from `initialRequest`, modify:
+  - change `service:` to the new stage's service name (convention is to use the Cloud Tasks queue name but all lower case and with dashes between words)
+  - under `env_variables:` change the *names* of the several `TASK_` lines and give them appropriate values
+    - e.g., the `initial-request` service has env vars that begin with  `TASK_INITIAL_REQUEST`; change the names of all of those to `TASK_`your_service_name, and set the values appropriately
+  - change the values of the `TASK_` env vars as needed
+- in `pkg/config/config.go`:
+  - at bottom, update the `Config struct` definition to add the "friendly name" for the env vars created above
+  - at top, update the `[]binding`: for each env var, pair the friendly name just created with the env var name created earlier
+- to run locally, update `.bash_profile` or equivalent with the env vars above
+  - restart VC Code or equivalent after changing `.bash_profile` so those changes take effect
+  - obviously the env var names and values in `app.yaml` and `.bash_profile` should match
+- if needed, update `config.yaml` with configuration info that will be stored encrypted and read by `GetConfig()`
+  - Ensure both `.gitignore` and `.gcloudignore` exclude `config.yaml`
+  - The script `gupload_encrypted.sh` will encrypt `config.yaml` and copy it to Google Cloud Storage in the bucket specified by the `ENCRYPTED_BUCKET` env var
+- update `_test.go` files including `pkg/config/config_test.go` to include the new `Config struct` members in `defaultResult`
+- **IMPORTANT:** run `pkg/config/config_test.go` to ensure the friendly names and env var names all are correct. **Mistakes here are common sources of early deployment failures!**
+- modify `gdeploy.sh` to deploy the new pipeline stage's service by adding the path to the service's `app.yaml`
+- run `bash ./gdeploy.sh` to deploy all services
+  - ... or copy and paste the `gsutil -m rm`... command to remove old files, and copy, paste and edit the `gcloud app deploy`... command to deploy only the new service
+
 ## Language
 
 - **Actionable Sales Information**: data extracted during transcription processing that enables the customer to pursue sales opportunities
@@ -69,13 +96,21 @@ Google App Engine services as defined in `app.yaml` files.
 
 ``` text
 default (./cmd/server, app startup)
-|__wInitialRequest (./cmd/wInitialRequest, incoming requests for transcription)
+|__initial-request (./cmd/initial-request, incoming requests for transcription)
 ```
 
 ## Cloud Tasks Queues
 
-Google Cloud Tasks queues:
+Google Cloud Tasks queues and flow: *(see Airtable, "Flooring: Transcription Pipeline" for details)*
 
-``` text
-wInitialRequest (tasks added by `default` service, processed by `w-initial-request` service, ./cmd/wInitialRequest)
-```
+1. **InitialRequest**: tasks added by `default` service, handled by `initial-request` service implemented by `./cmd/initialRequest/main.go` and `/task_handler` endpoint
+1. **ServiceDispatch**: tasks added by `initial-request` service, handled by `service-dispatch` service implemented by `./cmd/serviceDispatch/main.go` and `/task_handler` endpoint
+1. **TranscriptionGCP**: tasks added by `service-dispatch` service, handled by `transcription-GCP` service implemented by `./cmd/transcriptionGCP/main.go` and `/task_handler` endpoint
+1. **TranscriptionComplete**: tasks added by `transcription-GCP` service, handled by `transcription-complete` service implemented by `./cmd/transcriptionComplete/main.go` and `/task_handler` endpoint
+1. **TranscriptQA**: tasks added by `transcription-complete` service, handled by `transcript-QA` service implemented by `./cmd/transcriptQA/main.go` and `/task_handler` endpoint
+1. **TranscriptQAComplete**: tasks added by `transcript-QA` service, handled by `transcript-QA-complete` service  implemented by `./cmd/transcriptionQAComplete/main.go` and `/task_handler` endpoint
+1. **Tagging**: tasks added by `transcript-QA-complete` service, handled by `tagging` service implemented by `./cmd/tagging/main.go` and `/task_handler` endpoint
+1. **TaggingComplete**: tasks added by `tagging` service, handled by `tagging-complete` service implemented by `./cmd/taggingComplete/main.go` and `/task_handler` endpoint
+1. **TaggingQA**: tasks added by `tagging-complete` service, handled by `tagging-QA` service implemented by `./cmd/taggingQA/main.go` and `/task_handler` endpoint
+1. **TaggingQAComplete**: tasks added by `tagging-qa` service, handled by `tagging-qa-complete` service implemented by `./cmd/taggingQAComplete/main.go` and `/task_handler` endpoint
+1. **CompletionProcessing**: tasks added by `tagging-qa-complete` service, handled by `completion-processing` service implemented by `./cmd/completionProcessing/main.go` and `/task_handler` endpoint
