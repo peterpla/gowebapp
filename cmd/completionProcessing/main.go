@@ -21,7 +21,7 @@ import (
 var Config config.Config
 
 func init() {
-	logPrefix := "transcription-gcp.main.init(),"
+	logPrefix := "completion-processing.main.init(),"
 	if err := config.GetConfig(&Config); err != nil {
 		msg := fmt.Sprintf(logPrefix+" GetConfig error: %v", err)
 		panic(msg)
@@ -31,10 +31,10 @@ func init() {
 
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
-	// log.Printf("Enter transcription-gcp.main, Config: %+v\n", Config)
+	// log.Printf("Enter completion-processing.main, Config: %+v\n", Config)
 
 	// set ServiceName and QueueName appropriately
-	prefix := "TaskTranscriptionGCP"
+	prefix := "TaskCompletionProcessing"
 	Config.ServiceName = viper.GetString(prefix + "SvcName")
 	Config.QueueName = viper.GetString(prefix + "WriteToQ")
 	Config.NextServiceName = viper.GetString(prefix + "NextSvcToHandleReq")
@@ -134,15 +134,16 @@ func taskHandler(a adding.Service) httprouter.Handle {
 
 		// TODO: validation incoming request
 
-		// TODO: create task on the next pipeline stage's queue with updated request
-		newRequest := incomingRequest
-		a.AddRequest(newRequest)
+		// TODO: establish what constitutes "completion processing"
+		// newRequest := incomingRequest
+		// a.AddRequest(newRequest)
+		log.Printf("%s: request processing completed!", serviceName)
 
 		// Log & output details of the created task.
 		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
 		// 	serviceName, queueName, taskName, newRequest)
 		output := fmt.Sprintf("%s.taskHandler completed: queue %q, payload: %+v",
-			serviceName, queueName, newRequest)
+			serviceName, queueName, incomingRequest)
 		log.Println(output)
 
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.

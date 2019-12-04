@@ -21,7 +21,7 @@ import (
 var Config config.Config
 
 func init() {
-	logPrefix := "transcription-gcp.main.init(),"
+	logPrefix := "tagging-qa.main.init(),"
 	if err := config.GetConfig(&Config); err != nil {
 		msg := fmt.Sprintf(logPrefix+" GetConfig error: %v", err)
 		panic(msg)
@@ -31,10 +31,10 @@ func init() {
 
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
-	// log.Printf("Enter transcription-gcp.main, Config: %+v\n", Config)
+	// log.Printf("Enter tagging-complete.main, Config: %+v\n", Config)
 
 	// set ServiceName and QueueName appropriately
-	prefix := "TaskTranscriptionGCP"
+	prefix := "TaskTaggingQA"
 	Config.ServiceName = viper.GetString(prefix + "SvcName")
 	Config.QueueName = viper.GetString(prefix + "WriteToQ")
 	Config.NextServiceName = viper.GetString(prefix + "NextSvcToHandleReq")

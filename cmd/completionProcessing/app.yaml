@@ -1,6 +1,6 @@
 # https://cloud.google.com/appengine/docs/standard/go113/config/appref
 runtime: go113
-service: tagging
+service: completion-processing
 
 handlers:
 - url: /.*
@@ -18,7 +18,7 @@ env_variables:
   KMS_KEYRING: devkeyring
   KMS_KEY: config
   TASKS_LOCATION: "us-west2"
-  TASK_TAGGING_SERVICENAME: "tagging"
-  TASK_TAGGING_WRITE_TO_Q: "TaggingComplete"
-  TASK_TAGGING_SVC_TO_HANDLE_REQ: "tagging-complete"
-  TASK_TAGGING_PORT: 8087
+  TASK_COMPLETION_PROCESSING_SERVICENAME: "completion-processing"
+  TASK_COMPLETION_PROCESSING_WRITE_TO_Q: "no-queue"
+  TASK_COMPLETION_PROCESSING_SVC_TO_HANDLE_REQ: "no-service"
+  TASK_COMPLETION_PROCESSING_PORT: 8091

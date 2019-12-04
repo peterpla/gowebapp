@@ -39,6 +39,10 @@ func TestGetConfig(t *testing.T) {
 		TaskTranscriptQAPort:          "8085",
 		TaskTranscriptQACompletePort:  "8086",
 		TaskTaggingPort:               "8087",
+		TaskTaggingCompletePort:       "8088",
+		TaskTaggingQAPort:             "8089",
+		TaskTaggingQACompletePort:     "8090",
+		TaskCompletionProcessingPort:  "8091",
 		// queue name used by each services
 		TaskDefaultWriteToQ:               "InitialRequest",
 		TaskInitialRequestWriteToQ:        "ServiceDispatch",
@@ -48,6 +52,10 @@ func TestGetConfig(t *testing.T) {
 		TaskTranscriptQAWriteToQ:          "TranscriptQAComplete",
 		TaskTranscriptQACompleteWriteToQ:  "Tagging",
 		TaskTaggingWriteToQ:               "TaggingComplete",
+		TaskTaggingCompleteWriteToQ:       "TaggingQA",
+		TaskTaggingQAWriteToQ:             "TaggingQAComplete",
+		TaskTaggingQACompleteWriteToQ:     "CompletionProcessing",
+		TaskCompletionProcessingWriteToQ:  "no-queue",
 		// service name of each service
 		TaskDefaultSvcName:               "default",
 		TaskInitialRequestSvcName:        "initial-request",
@@ -57,6 +65,10 @@ func TestGetConfig(t *testing.T) {
 		TaskTranscriptQASvcName:          "transcript-qa",
 		TaskTranscriptQACompleteSvcName:  "transcript-qa-complete",
 		TaskTaggingSvcName:               "tagging",
+		TaskTaggingCompleteSvcName:       "tagging-complete",
+		TaskTaggingQASvcName:             "tagging-qa",
+		TaskTaggingQACompleteSvcName:     "tagging-qa-complete",
+		TaskCompletionProcessingSvcName:  "completion-processing",
 		// next service in the chain to handle requests
 		TaskDefaultNextSvcToHandleReq:               "initial-request",
 		TaskInitialRequestNextSvcToHandleReq:        "service-dispatch",
@@ -66,6 +78,10 @@ func TestGetConfig(t *testing.T) {
 		TaskTranscriptQANextSvcToHandleReq:          "transcript-qa-complete",
 		TaskTranscriptQACompleteNextSvcToHandleReq:  "tagging",
 		TaskTaggingNextSvcToHandleReq:               "tagging-complete",
+		TaskTaggingCompleteNextSvcToHandleReq:       "tagging-qa",
+		TaskTaggingQANextSvcToHandleReq:             "tagging-qa-complete",
+		TaskTaggingQACompleteNextSvcToHandleReq:     "completion-processing",
+		TaskCompletionProcessingNextSvcToHandleReq:  "no-service",
 		//
 		Verbose: false,
 		Version: "0.1.0",

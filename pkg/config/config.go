@@ -108,6 +108,26 @@ func GetConfig(cfg *Config) error {
 		{structField: "TaskTaggingWriteToQ", envVar: "TASK_TAGGING_WRITE_TO_Q"},
 		{structField: "TaskTaggingNextSvcToHandleReq", envVar: "TASK_TAGGING_SVC_TO_HANDLE_REQ"},
 		{structField: "TaskTaggingPort", envVar: "TASK_TAGGING_PORT"},
+		//
+		{structField: "TaskTaggingCompleteSvcName", envVar: "TASK_TAGGING_COMPLETE_SERVICENAME"},
+		{structField: "TaskTaggingCompleteWriteToQ", envVar: "TASK_TAGGING_COMPLETE_WRITE_TO_Q"},
+		{structField: "TaskTaggingCompleteNextSvcToHandleReq", envVar: "TASK_TAGGING_COMPLETE_SVC_TO_HANDLE_REQ"},
+		{structField: "TaskTaggingCompletePort", envVar: "TASK_TAGGING_COMPLETE_PORT"},
+		//
+		{structField: "TaskTaggingQASvcName", envVar: "TASK_TAGGING_QA_SERVICENAME"},
+		{structField: "TaskTaggingQAWriteToQ", envVar: "TASK_TAGGING_QA_WRITE_TO_Q"},
+		{structField: "TaskTaggingQANextSvcToHandleReq", envVar: "TASK_TAGGING_QA_SVC_TO_HANDLE_REQ"},
+		{structField: "TaskTaggingQAPort", envVar: "TASK_TAGGING_QA_PORT"},
+		//
+		{structField: "TaskTaggingQACompleteSvcName", envVar: "TASK_TAGGING_QA_COMPLETE_SERVICENAME"},
+		{structField: "TaskTaggingQACompleteWriteToQ", envVar: "TASK_TAGGING_QA_COMPLETE_WRITE_TO_Q"},
+		{structField: "TaskTaggingQACompleteNextSvcToHandleReq", envVar: "TASK_TAGGING_QA_COMPLETE_SVC_TO_HANDLE_REQ"},
+		{structField: "TaskTaggingQACompletePort", envVar: "TASK_TAGGING_QA_COMPLETE_PORT"},
+		//
+		{structField: "TaskCompletionProcessingSvcName", envVar: "TASK_COMPLETION_PROCESSING_SERVICENAME"},
+		{structField: "TaskCompletionProcessingWriteToQ", envVar: "TASK_COMPLETION_PROCESSING_WRITE_TO_Q"},
+		{structField: "TaskCompletionProcessingNextSvcToHandleReq", envVar: "TASK_COMPLETION_PROCESSING_SVC_TO_HANDLE_REQ"},
+		{structField: "TaskCompletionProcessingPort", envVar: "TASK_COMPLETION_PROCESSING_PORT"},
 	}
 
 	for _, b := range bindings {
@@ -239,6 +259,10 @@ type Config struct {
 	TaskTranscriptQAPort          string
 	TaskTranscriptQACompletePort  string
 	TaskTaggingPort               string
+	TaskTaggingCompletePort       string
+	TaskTaggingQAPort             string
+	TaskTaggingQACompletePort     string
+	TaskCompletionProcessingPort  string
 	// queue name used by each services
 	TaskDefaultWriteToQ               string
 	TaskInitialRequestWriteToQ        string
@@ -248,6 +272,10 @@ type Config struct {
 	TaskTranscriptQAWriteToQ          string
 	TaskTranscriptQACompleteWriteToQ  string
 	TaskTaggingWriteToQ               string
+	TaskTaggingCompleteWriteToQ       string
+	TaskTaggingQAWriteToQ             string
+	TaskTaggingQACompleteWriteToQ     string
+	TaskCompletionProcessingWriteToQ  string
 	// service name of each service
 	TaskDefaultSvcName               string
 	TaskInitialRequestSvcName        string
@@ -257,6 +285,10 @@ type Config struct {
 	TaskTranscriptQASvcName          string
 	TaskTranscriptQACompleteSvcName  string
 	TaskTaggingSvcName               string
+	TaskTaggingCompleteSvcName       string
+	TaskTaggingQASvcName             string
+	TaskTaggingQACompleteSvcName     string
+	TaskCompletionProcessingSvcName  string
 	// next service in the chain to handle requests
 	TaskDefaultNextSvcToHandleReq               string
 	TaskInitialRequestNextSvcToHandleReq        string
@@ -266,6 +298,10 @@ type Config struct {
 	TaskTranscriptQANextSvcToHandleReq          string
 	TaskTranscriptQACompleteNextSvcToHandleReq  string
 	TaskTaggingNextSvcToHandleReq               string
+	TaskTaggingCompleteNextSvcToHandleReq       string
+	TaskTaggingQANextSvcToHandleReq             string
+	TaskTaggingQACompleteNextSvcToHandleReq     string
+	TaskCompletionProcessingNextSvcToHandleReq  string
 	// miscellaneous
 	Verbose bool
 	Version string

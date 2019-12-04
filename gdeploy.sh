@@ -17,7 +17,9 @@ gsutil -m rm gs://staging.elated-practice-224603.appspot.com/**
 gcloud app deploy --verbosity=warning ./cmd/server/app.yaml ./cmd/initialRequest/app.yaml \
     ./cmd/serviceDispatch/app.yaml ./cmd/transcriptionGCP/app.yaml \
     ./cmd/transcriptionComplete/app.yaml ./cmd/transcriptQA/app.yaml \
-    ./cmd/transcriptQAComplete/app.yaml ./cmd/tagging/app.yaml
+    ./cmd/transcriptQAComplete/app.yaml ./cmd/tagging/app.yaml \
+    ./cmd/taggingQA/app.yaml ./cmd/taggingQAComplete/app.yaml \
+    ./cmd/completionProcessing/app.yaml
 
 # list all services in the current project
 gcloud app services list
