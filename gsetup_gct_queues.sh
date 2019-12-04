@@ -5,7 +5,7 @@
 # <https://cloud.google.com/tasks/docs/dual-overview#appe>
 
 # List all available queues
-gcloud tasks queues list
+#gcloud tasks queues list
 
 # 2. "Create a queue"
 # <https://cloud.google.com/tasks/docs/creating-queues>
@@ -19,6 +19,7 @@ gcloud tasks queues list
 #gcloud tasks queues create TaggingComplete
 #gcloud tasks queues create TaggingQA
 #gcloud tasks queues create TaggingQAComplete
+#gcloud tasks queues create CompletionProcessing
 #gcloud tasks queues create Persistence
 #gcloud tasks queues create PersistenceComplete
 #gcloud tasks queues create Reporting
@@ -48,6 +49,7 @@ gcloud tasks queues list
 #gcloud tasks queues describe TaggingComplete > gcp_logs/queueDetails_TaggingComplete.txt
 #gcloud tasks queues describe TaggingQA > gcp_logs/queueDetails_TaggingQA.txt
 #gcloud tasks queues describe TaggingQAComplete > gcp_logs/queueDetails_TaggingQAComplete.txt
+#gcloud tasks queues describe CompletionProcessing > gcp_logs/queueDetails_CompletionProcessing.txt
 #gcloud tasks queues describe Persistence > gcp_logs/queueDetails_Persistence.txt
 #gcloud tasks queues describe PersistenceComplete > gcp_logs/queueDetails_PersistenceComplete.txt
 #gcloud tasks queues describe Reporting > gcp_logs/queueDetails_Reporting.txt

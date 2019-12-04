@@ -112,4 +112,5 @@ Google Cloud Tasks queues and flow: *(see Airtable, "Flooring: Transcription Pip
 1. **Tagging**: tasks added by `transcript-QA-complete` service, handled by `tagging` service implemented by `./cmd/tagging/main.go` and `/task_handler` endpoint
 1. **TaggingComplete**: tasks added by `tagging` service, handled by `tagging-complete` service implemented by `./cmd/taggingComplete/main.go` and `/task_handler` endpoint
 1. **TaggingQA**: tasks added by `tagging-complete` service, handled by `tagging-QA` service implemented by `./cmd/taggingQA/main.go` and `/task_handler` endpoint
-1. **TaggingQAComplete**: tasks added by `tagging-QA` service, handled by `transcript-request-complete` service implemented by `./cmd/transcriptionRequestComplete/main.go` and `/task_handler` endpoint
+1. **TaggingQAComplete**: tasks added by `tagging-qa` service, handled by `tagging-qa-complete` service implemented by `./cmd/taggingQAComplete/main.go` and `/task_handler` endpoint
+1. **CompletionProcessing**: tasks added by `tagging-qa-complete` service, handled by `completion-processing` service implemented by `./cmd/completionProcessing/main.go` and `/task_handler` endpoint

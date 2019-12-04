@@ -88,6 +88,26 @@ func GetConfig(cfg *Config) error {
 		{structField: "TaskTranscriptionGCPWriteToQ", envVar: "TASK_TRANSCRIPTION_GCP_WRITE_TO_Q"},
 		{structField: "TaskTranscriptionGCPNextSvcToHandleReq", envVar: "TASK_TRANSCRIPTION_GCP_SVC_TO_HANDLE_REQ"},
 		{structField: "TaskTranscriptionGCPPort", envVar: "TASK_TRANSCRIPTION_GCP_PORT"},
+		//
+		{structField: "TaskTranscriptionCompleteSvcName", envVar: "TASK_TRANSCRIPTION_COMPLETE_SERVICENAME"},
+		{structField: "TaskTranscriptionCompleteWriteToQ", envVar: "TASK_TRANSCRIPTION_COMPLETE_WRITE_TO_Q"},
+		{structField: "TaskTranscriptionCompleteNextSvcToHandleReq", envVar: "TASK_TRANSCRIPTION_COMPLETE_SVC_TO_HANDLE_REQ"},
+		{structField: "TaskTranscriptionCompletePort", envVar: "TASK_TRANSCRIPTION_COMPLETE_PORT"},
+		//
+		{structField: "TaskTranscriptQASvcName", envVar: "TASK_TRANSCRIPT_QA_SERVICENAME"},
+		{structField: "TaskTranscriptQAWriteToQ", envVar: "TASK_TRANSCRIPT_QA_WRITE_TO_Q"},
+		{structField: "TaskTranscriptQANextSvcToHandleReq", envVar: "TASK_TRANSCRIPT_QA_SVC_TO_HANDLE_REQ"},
+		{structField: "TaskTranscriptQAPort", envVar: "TASK_TRANSCRIPT_QA_PORT"},
+		//
+		{structField: "TaskTranscriptQACompleteSvcName", envVar: "TASK_TRANSCRIPT_QA_COMPLETE_SERVICENAME"},
+		{structField: "TaskTranscriptQACompleteWriteToQ", envVar: "TASK_TRANSCRIPT_QA_COMPLETE_WRITE_TO_Q"},
+		{structField: "TaskTranscriptQACompleteNextSvcToHandleReq", envVar: "TASK_TRANSCRIPT_QA_COMPLETE_SVC_TO_HANDLE_REQ"},
+		{structField: "TaskTranscriptQACompletePort", envVar: "TASK_TRANSCRIPT_QA_COMPLETE_PORT"},
+		//
+		{structField: "TaskTaggingSvcName", envVar: "TASK_TAGGING_SERVICENAME"},
+		{structField: "TaskTaggingWriteToQ", envVar: "TASK_TAGGING_WRITE_TO_Q"},
+		{structField: "TaskTaggingNextSvcToHandleReq", envVar: "TASK_TAGGING_SVC_TO_HANDLE_REQ"},
+		{structField: "TaskTaggingPort", envVar: "TASK_TAGGING_PORT"},
 	}
 
 	for _, b := range bindings {
@@ -211,25 +231,41 @@ type Config struct {
 	StorageLocation string
 	TasksLocation   string
 	// port number used by each service
-	TaskDefaultPort          string
-	TaskInitialRequestPort   string
-	TaskServiceDispatchPort  string
-	TaskTranscriptionGCPPort string
+	TaskDefaultPort               string
+	TaskInitialRequestPort        string
+	TaskServiceDispatchPort       string
+	TaskTranscriptionGCPPort      string
+	TaskTranscriptionCompletePort string
+	TaskTranscriptQAPort          string
+	TaskTranscriptQACompletePort  string
+	TaskTaggingPort               string
 	// queue name used by each services
-	TaskDefaultWriteToQ          string
-	TaskInitialRequestWriteToQ   string
-	TaskServiceDispatchWriteToQ  string
-	TaskTranscriptionGCPWriteToQ string
+	TaskDefaultWriteToQ               string
+	TaskInitialRequestWriteToQ        string
+	TaskServiceDispatchWriteToQ       string
+	TaskTranscriptionGCPWriteToQ      string
+	TaskTranscriptionCompleteWriteToQ string
+	TaskTranscriptQAWriteToQ          string
+	TaskTranscriptQACompleteWriteToQ  string
+	TaskTaggingWriteToQ               string
 	// service name of each service
-	TaskDefaultSvcName          string
-	TaskInitialRequestSvcName   string
-	TaskServiceDispatchSvcName  string
-	TaskTranscriptionGCPSvcName string
+	TaskDefaultSvcName               string
+	TaskInitialRequestSvcName        string
+	TaskServiceDispatchSvcName       string
+	TaskTranscriptionGCPSvcName      string
+	TaskTranscriptionCompleteSvcName string
+	TaskTranscriptQASvcName          string
+	TaskTranscriptQACompleteSvcName  string
+	TaskTaggingSvcName               string
 	// next service in the chain to handle requests
-	TaskDefaultNextSvcToHandleReq          string
-	TaskInitialRequestNextSvcToHandleReq   string
-	TaskServiceDispatchNextSvcToHandleReq  string
-	TaskTranscriptionGCPNextSvcToHandleReq string
+	TaskDefaultNextSvcToHandleReq               string
+	TaskInitialRequestNextSvcToHandleReq        string
+	TaskServiceDispatchNextSvcToHandleReq       string
+	TaskTranscriptionGCPNextSvcToHandleReq      string
+	TaskTranscriptionCompleteNextSvcToHandleReq string
+	TaskTranscriptQANextSvcToHandleReq          string
+	TaskTranscriptQACompleteNextSvcToHandleReq  string
+	TaskTaggingNextSvcToHandleReq               string
 	// miscellaneous
 	Verbose bool
 	Version string

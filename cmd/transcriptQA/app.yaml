@@ -1,0 +1,24 @@
+# https://cloud.google.com/appengine/docs/standard/go113/config/appref
+runtime: go113
+service: transcript-qa
+
+handlers:
+- url: /.*
+  secure: always
+  redirect_http_response_code: 301
+  script: auto
+
+env_variables:
+  PROJECT_ID: elated-practice-224603
+  STORAGE_LOCATION: us-west2
+  STATIC_FILES_BUCKET: elated-practice-224603
+  ENCRYPTED_BUCKET: elated-practice-224603-gowebapp-secret
+  CONFIG_FILE: config.yaml
+  KMS_LOCATION: us-west2
+  KMS_KEYRING: devkeyring
+  KMS_KEY: config
+  TASKS_LOCATION: "us-west2"
+  TASK_TRANSCRIPT_QA_SERVICENAME: "transcript-qa"
+  TASK_TRANSCRIPT_QA_WRITE_TO_Q: "TranscriptQAComplete"
+  TASK_TRANSCRIPT_QA_SVC_TO_HANDLE_REQ: "transcript-qa-complete"
+  TASK_TRANSCRIPT_QA_PORT: 8085
