@@ -2,6 +2,9 @@ package adding
 
 import (
 	"errors"
+	"log"
+
+	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
 // ErrCustomerNotFound - provided customer ID was not found
@@ -9,11 +12,15 @@ var ErrCustomerNotFound = errors.New("customer ID not found")
 
 // Service provides adding operations
 type Service interface {
-	AddRequest(Request)
+	// AddRequest() takes a Request and returns a (possibly modified)
+	// Request
+	AddRequest(Request) Request
 }
 
-// Repository - access Request repository
+// Repository provides persistent adding services
 type Repository interface {
+	// AddRequest() takes a request and returns an error with
+	// the status of the Add operation
 	AddRequest(Request) error
 }
 
@@ -27,11 +34,18 @@ func NewService(r Repository) Service {
 }
 
 // AddRequest adds the request to be processed
-func (s *service) AddRequest(req Request) {
-	// log.Printf("adding.AddRequest - enter\n")
-	// TODO: validation
+func (s *service) AddRequest(req Request) Request {
+	sn := serviceInfo.GetServiceName()
+	// log.Printf("%s.adding.AddRequest enter, req: %+v\n", sn, req)
+
+	newReq := req
+	// TODO: validate req object
 
 	// TODO: error handling
-	_ = s.bR.AddRequest(req)
-	// log.Printf("adding.AddRequest - exit\n")
+	if err := s.bR.AddRequest(req); err != nil {
+		log.Printf("%s.adding.AddRequest, bR.AddRequest error: %+v, req: +%v\n", sn, err, req)
+	}
+
+	// log.Printf("%s.adding.AddRequest exiting, newReq: %+v\n", sn, newReq)
+	return newReq
 }

@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/peterpla/gowebapp/pkg/adding"
-	"github.com/peterpla/gowebapp/pkg/config"
-	"github.com/peterpla/gowebapp/pkg/storage/memory"
-	"github.com/peterpla/gowebapp/pkg/storage/queue"
+	"github.com/peterpla/lead-expert/pkg/adding"
+	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/storage/memory"
+	"github.com/peterpla/lead-expert/pkg/storage/queue"
 )
 
 // StorageType defines available storage types

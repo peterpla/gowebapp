@@ -1,6 +1,6 @@
-# Architecture - XYZZY Service
+# Architecture - MyLeadExperts
 
-## An HTTP API for automated sales call transcription
+## An automated service to deliver tagged call transcripts from audio/video recordings
 
 ## Checklist to add a new pipeline stage
 
@@ -29,7 +29,74 @@
 - run `bash ./gdeploy.sh` to deploy all services
   - ... or copy and paste the `gsutil -m rm`... command to remove old files, and copy, paste and edit the `gcloud app deploy`... command to deploy only the new service
 
-## Language
+## Packages
+
+``` text
+cmd (things you start)
+|__data
+|  |__main.go (add sample data, etc.)
+|__server
+   |__main.go (HTTP server, minimal routing, request handler, etc.)
+|__[for each service (pipeline stage)]
+   |__main.go (HTTP server, /task_handler, etc.)
+pkg
+|__adding (enqueue)
+|__completing
+|__config (process configuration inputs)
+|__delivering
+|__dequeue
+|__enqueue
+|__http
+|__listing
+|__middleware
+|__removing (dequeue)
+|__reviewing
+|__server (==obsolete==)
+|__serviceInfo
+|__storage (persistence)
+|__submitting
+|__tagging
+|__[value objects - `struct`s]
+```
+
+## GAE Service Implementation
+
+Google App Engine services as defined in `cmd/*/app.yaml` files.
+
+``` text
+default (./cmd/server, app startup)
+|__initial-request (./cmd/initialRequest/app.yaml, incoming requests for transcription)
+|__service-dispatch (./cmd/serviceDispatch/app.yaml, dispatch request to preferred ML service)
+|__transcription-gcp (./cmd/transcriptionGCP/app.yaml, submit to Google Speech-to-Text service)
+|__transcription-complete (./cmd/transcriptionComplete/app.yaml, completed requests from ML services)
+|__transcript-qa (./cmd/transcriptQA/app.yaml, perform QA on ML-generated transcript)
+|__transcript-qa-complete (./cmd/transcriptQAComplete/app.yaml, completed requests from QA)
+|__tagging (./cmd/tagging/app.yaml, dispatch transcript to preferred tagging service)
+|__tagging-complete (./cmd/taggingComplete/app.yaml, completed requests from tagging)
+|__tagging-qa (./cmd/taggingQA/app.yaml, dispatch tagged transcripts for QA)
+|__tagging-qa-complete (./cmd/taggingQAComplete/app.yaml, completed requests from tagging QA)
+|__completion-processing (./cmd/completionProcessing/app.yaml, wrap up request processing)
+```
+
+## Cloud Tasks Queues
+
+Google Cloud Tasks queues and flow: *(see Airtable, "Flooring: Transcription Pipeline" for details)*
+
+1. **InitialRequest**: tasks added by `default` service, handled by `initial-request` service implemented by `./cmd/initialRequest/main.go` and `/task_handler` endpoint
+1. **ServiceDispatch**: tasks added by `initial-request` service, handled by `service-dispatch` service implemented by `./cmd/serviceDispatch/main.go` and `/task_handler` endpoint
+1. **TranscriptionGCP**: tasks added by `service-dispatch` service, handled by `transcription-gcp` service implemented by `./cmd/transcriptionGCP/main.go` and `/task_handler` endpoint
+1. **TranscriptionComplete**: tasks added by `transcription-gcp` service, handled by `transcription-complete` service implemented by `./cmd/transcriptionComplete/main.go` and `/task_handler` endpoint
+1. **TranscriptQA**: tasks added by `transcription-complete` service, handled by `transcript-QA` service implemented by `./cmd/transcriptQA/main.go` and `/task_handler` endpoint
+1. **TranscriptQAComplete**: tasks added by `transcript-QA` service, handled by `transcript-QA-complete` service  implemented by `./cmd/transcriptionQAComplete/main.go` and `/task_handler` endpoint
+1. **Tagging**: tasks added by `transcript-QA-complete` service, handled by `tagging` service implemented by `./cmd/tagging/main.go` and `/task_handler` endpoint
+1. **TaggingComplete**: tasks added by `tagging` service, handled by `tagging-complete` service implemented by `./cmd/taggingComplete/main.go` and `/task_handler` endpoint
+1. **TaggingQA**: tasks added by `tagging-complete` service, handled by `tagging-QA` service implemented by `./cmd/taggingQA/main.go` and `/task_handler` endpoint
+1. **TaggingQAComplete**: tasks added by `tagging-qa` service, handled by `tagging-qa-complete` service implemented by `./cmd/taggingQAComplete/main.go` and `/task_handler` endpoint
+1. **CompletionProcessing**: tasks added by `tagging-qa-complete` service, handled by `completion-processing` service implemented by `./cmd/completionProcessing/main.go` and `/task_handler` endpoint
+
+## Domain-Driven Design artifacts
+
+### Language
 
 - **Actionable Sales Information**: data extracted during transcription processing that enables the customer to pursue sales opportunities
 - **Billing**: record billable activities and periodically charge the customer, e.g., for transcriptions delivered and storage used
@@ -46,71 +113,32 @@
 - **Transcript**: a text file with the written transcript produced from the provided media file
 - **Validation**: confirm a request meets the requirements to proceed to the next stage of request processing
 
-## Services
+### Services
 
 **Request**: create, enqueue, dequeue, process, complete ... a request
+
 **Transcript**: create, review, tag, complete, deliver ... a transcript
+
 **Reporting**: create, complete, deliver ... a report
 
-## Value Objects
+### Value Objects
 
-Customer, request, media file, transcript, tagging metadata
+Customer, request, media file, transcript with tagging metadata
 
-## Events
+### Events
 
 **Request**: rejected, created, added to queue, dispatched to worker, process step completed and removed from queue, retried, special handling required
+
 **Transcript**: created, under review, review completed, transcripion completed, delivered to customer, special handling required
+
 **Customer**: added, modified, transcription requested, transcript delivered, report delivered, service charge allocation added, billing event, external service resource billed
+
 **External Services**: processing by service requested, processing completed, service resource consumed (capturing key metrics), service charge received, service charges matched to customer usage, service charges allocated to customers for billing
+
 **Billing**: payment method established, payment method verified, external service consumed (e.g., seconds of processing), periodic charges calculated (e.g., GB of storage), customer payment initiated (e.g., credit card charged), customer payment received
 
-## Repository
+### Repository
 
-**Customer Repository**: enables the customer to review previously completed recordings, transcripts and reports. Contains: original audio file, delivered transcript, reports
+**Customer Repository**: information we need about the customer and their processing preferences. **Contains**: contact info, configuration info, billing info.
 
-**Transcription Artifacts**: enables us to revisit previously completed requests and work product to develop customized ML models, assess improvement by external services. Contains: delivered transcript, tagging metadata; intermediate transcripts; all associated with customer's original audio file
-
-## Packages
-
-``` text
-cmd (things you start)
-|__data
-|  |__main.go (add sample data, etc.)
-|__server
-   |__main.go (HTTP server, routing, etc.)
-pkg
-|__adding (enqueue)
-|__completing
-|__delivering
-|__listing
-|__removing (dequeue)
-|__reviewing
-|__storage
-|__submitting
-|__[value objects - `struct`s]
-```
-
-## GAE Services
-
-Google App Engine services as defined in `app.yaml` files.
-
-``` text
-default (./cmd/server, app startup)
-|__initial-request (./cmd/initial-request, incoming requests for transcription)
-```
-
-## Cloud Tasks Queues
-
-Google Cloud Tasks queues and flow: *(see Airtable, "Flooring: Transcription Pipeline" for details)*
-
-1. **InitialRequest**: tasks added by `default` service, handled by `initial-request` service implemented by `./cmd/initialRequest/main.go` and `/task_handler` endpoint
-1. **ServiceDispatch**: tasks added by `initial-request` service, handled by `service-dispatch` service implemented by `./cmd/serviceDispatch/main.go` and `/task_handler` endpoint
-1. **TranscriptionGCP**: tasks added by `service-dispatch` service, handled by `transcription-GCP` service implemented by `./cmd/transcriptionGCP/main.go` and `/task_handler` endpoint
-1. **TranscriptionComplete**: tasks added by `transcription-GCP` service, handled by `transcription-complete` service implemented by `./cmd/transcriptionComplete/main.go` and `/task_handler` endpoint
-1. **TranscriptQA**: tasks added by `transcription-complete` service, handled by `transcript-QA` service implemented by `./cmd/transcriptQA/main.go` and `/task_handler` endpoint
-1. **TranscriptQAComplete**: tasks added by `transcript-QA` service, handled by `transcript-QA-complete` service  implemented by `./cmd/transcriptionQAComplete/main.go` and `/task_handler` endpoint
-1. **Tagging**: tasks added by `transcript-QA-complete` service, handled by `tagging` service implemented by `./cmd/tagging/main.go` and `/task_handler` endpoint
-1. **TaggingComplete**: tasks added by `tagging` service, handled by `tagging-complete` service implemented by `./cmd/taggingComplete/main.go` and `/task_handler` endpoint
-1. **TaggingQA**: tasks added by `tagging-complete` service, handled by `tagging-QA` service implemented by `./cmd/taggingQA/main.go` and `/task_handler` endpoint
-1. **TaggingQAComplete**: tasks added by `tagging-qa` service, handled by `tagging-qa-complete` service implemented by `./cmd/taggingQAComplete/main.go` and `/task_handler` endpoint
-1. **CompletionProcessing**: tasks added by `tagging-qa-complete` service, handled by `completion-processing` service implemented by `./cmd/completionProcessing/main.go` and `/task_handler` endpoint
+**Customer Artifact Repository**: enables the customer to review previously completed recordings, transcripts and reports. Enables us to revisit previously completed requests and work product to develop customized ML models, assess improvement by external services. **Contains**: original audio files; intermediate transcripts and tagging metadata (associated with original audio file); delivered transcripts and tagging metadata (associated with original audio file); reports.
