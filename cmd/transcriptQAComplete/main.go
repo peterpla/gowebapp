@@ -12,10 +12,10 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
 
-	"github.com/peterpla/gowebapp/pkg/adding"
-	"github.com/peterpla/gowebapp/pkg/config"
-	"github.com/peterpla/gowebapp/pkg/middleware"
-	"github.com/peterpla/gowebapp/pkg/serviceInfo"
+	"github.com/peterpla/lead-expert/pkg/adding"
+	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/middleware"
+	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
 var Config config.Config
@@ -43,7 +43,7 @@ func main() {
 	serviceInfo.RegisterServiceName(Config.ServiceName)
 	serviceInfo.RegisterQueueName(Config.QueueName)
 	serviceInfo.RegisterNextServiceName(Config.NextServiceName)
-	log.Println(serviceInfo.DumpServiceInfo())
+	// log.Println(serviceInfo.DumpServiceInfo())
 
 	router := httprouter.New()
 	Config.Router = router

@@ -12,9 +12,9 @@ func TestGetConfig(t *testing.T) {
 
 	defaultResult := Config{
 		Adder:           nil,
-		AppName:         "gowebapp",
+		AppName:         "MyLeadExpert",
 		ConfigFile:      "config.yaml",
-		Description:     "Describe gowebapp here",
+		Description:     "More leads for local retailers. Generate more sales by routing your existing traffic through a proven conversion process.",
 		IsGAE:           false,
 		QueueName:       "",
 		Router:          nil,
@@ -22,7 +22,7 @@ func TestGetConfig(t *testing.T) {
 		NextServiceName: "",
 		StorageType:     Memory,
 		// Key Management Service for encrypted config
-		EncryptedBucket: "elated-practice-224603-gowebapp-secret",
+		EncryptedBucket: "elated-practice-224603-lead-expert-secret",
 		KmsKey:          "config",
 		KmsKeyRing:      "devkeyring",
 		KmsLocation:     "us-west2",

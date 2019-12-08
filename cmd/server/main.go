@@ -7,13 +7,14 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
 
-	"github.com/peterpla/gowebapp/pkg/adding"
-	"github.com/peterpla/gowebapp/pkg/config"
-	"github.com/peterpla/gowebapp/pkg/middleware"
-	"github.com/peterpla/gowebapp/pkg/serviceInfo"
+	"github.com/peterpla/lead-expert/pkg/adding"
+	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/middleware"
+	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
 var Config config.Config
@@ -24,7 +25,12 @@ func init() {
 		msg := fmt.Sprintf(logPrefix+" GetConfig error: %v", err)
 		panic(msg)
 	}
-	// log.Printf(logPrefix+" Config: %+v", Config)
+
+	// if Config.IsGAE {
+	// 	log.Printf(logPrefix+" GOOGLE_CLOUD_PROJECT %q, Config: %+v", os.Getenv("GOOGLE_CLOUD_PROJECT"), Config)
+	// } else {
+	// 	log.Printf(logPrefix+" Config: %+v", Config)
+	// }
 }
 
 func main() {
@@ -46,7 +52,7 @@ func main() {
 	router := httprouter.New()
 	Config.Router = router
 
-	router.POST("/api/v1/requests", addRequest(Config.Adder))
+	router.POST("/api/v1/requests", postHandler(Config.Adder))
 
 	// custom NotFound handler
 	router.NotFound = http.HandlerFunc(myNotFound)
@@ -69,11 +75,12 @@ func main() {
 	log.Printf("Error return from http.ListenAndServe: %v", err)
 }
 
-// addRequest returns a handler for POST /requests
-func addRequest(a adding.Service) httprouter.Handle {
-	// log.Printf("%s.main.AddRequest - enter/exit", serviceName)
+// postHandler returns the handler func for POST /requests
+func postHandler(a adding.Service) httprouter.Handle {
+	sn := serviceInfo.GetServiceName()
+	// log.Printf("%s.main.postHandler - enter/exit", sn)
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		// log.Printf("%s.main.AddRequest handler - enter\n", serviceName)
+		// log.Printf("%s.main.postHandler, enter\n", sn)
 		decoder := json.NewDecoder(r.Body)
 
 		var newRequest adding.Request
@@ -82,15 +89,22 @@ func addRequest(a adding.Service) httprouter.Handle {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		// log.Printf("%s.taskHandler - decoded request: %+v\n", Config.ServiceName, newRequest)
+		// log.Printf("%s.taskHandler - decoded request: %+v\n", sn, newRequest)
 
-		a.AddRequest(newRequest)
+		// TODO: pick up custom configuration from request
+		// TODO: validate incoming request
+
+		// set RequestID that uniquely identifies this request
+		newRequest.RequestID = uuid.New()
+
+		// add the request (e.g., to a queue) for subsequent processing
+		newReq := a.AddRequest(newRequest)
 
 		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode("New request added.")
 
-		// log.Printf("%s.AddRequest handler - exit\n", serviceName)
+		log.Printf("%s.postHandler, %+v\n", sn, newReq)
 	}
 }
 

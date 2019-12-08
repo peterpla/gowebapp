@@ -15,9 +15,9 @@ import (
 	"github.com/spf13/viper"
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
 
-	"github.com/peterpla/gowebapp/pkg/adding"
-	"github.com/peterpla/gowebapp/pkg/storage/memory"
-	"github.com/peterpla/gowebapp/pkg/storage/queue"
+	"github.com/peterpla/lead-expert/pkg/adding"
+	"github.com/peterpla/lead-expert/pkg/storage/memory"
+	"github.com/peterpla/lead-expert/pkg/storage/queue"
 )
 
 // GetConfig reads the configuration file from Cloud Storage and decrypts it using Cloud KMS.
@@ -146,12 +146,14 @@ func GetConfig(cfg *Config) error {
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
+		log.Printf("GetConfig, NewClient(), error: %+v\n", err)
 		return err
 	}
 
 	configFileEncrypted := cfg.ConfigFile + ".enc"
 	r, err := client.Bucket(cfg.EncryptedBucket).Object(configFileEncrypted).NewReader(ctx)
 	if err != nil {
+		log.Printf("GetConfig, opening %s from bucket %q, error: %+v\n", configFileEncrypted, cfg.EncryptedBucket, err)
 		return err
 	}
 	defer r.Close()
@@ -170,6 +172,7 @@ func GetConfig(cfg *Config) error {
 	//    https://medium.com/google-cloud/gcs-kms-and-wrapped-secrets-e5bde6b0c859
 	kmsClient, err := cloudkms.NewKeyManagementClient(ctx)
 	if err != nil {
+		log.Printf("GetConfig, NewKeyManagementClient(), error: %+v\n", err)
 		return err
 	}
 	dresp, err := kmsClient.Decrypt(ctx,
@@ -178,6 +181,7 @@ func GetConfig(cfg *Config) error {
 			Ciphertext: cfgEncoded,
 		})
 	if err != nil {
+		log.Printf("GetConfig, Decrypt(keyName: %q), error: %+v\n", keyName, err)
 		return err
 	}
 	// dresp.Plaintext is the decrypted config file contents

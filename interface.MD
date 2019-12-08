@@ -49,11 +49,13 @@ Body, JSON: *(key order is random, no ordering)*
 
 * **"RequestID"** (always) - string
 
-    Unique identifier of the Request, created by the server.
+    UUID identifier of the Request, created by the server. [RFC 4112](https://tools.ietf.org/html/rfc4122) version 4.
 
 * **"CreatedAt"** (always) - string - RFC3339
 
     Date and time the Request was created, in RFC3339 format. Always expressed as UTC/GMT.
+
+TODO: provide estimated cost feedback to the requestor.
 
 * **"EstimatedCost"** (always) - float
 
@@ -63,16 +65,21 @@ Example Response Body:
 
 ```json
 {
-  "RequestID":      "IIhHCa6HHPUZqWLwIl6b5uZx4Ez6",
+  "RequestID":      "269fd581-35aa-465d-81df-c0295034c723",
   "CreatedAt":      "2019-06-22T21:54:56.714Z",
-  "EstimatedCost":  5.00
 }
 ```
 
 #### Response Status
 
-* 201 Created - success - TODO: consider 202 Accepted, pending reading the MediaFile
-* 400 Bad Request - TODO: list reasons for receiving this result
+* 201 Created - success
+
+TODO: consider 202 Accepted, see [REST and long-running jobs](https://farazdagi.com/2014/rest-and-long-running-jobs/) and [Long running REST API with queues](https://stackoverflow.com/a/33011965/10649045) for detailed discussions of how to handle this.
+
+* 400 Bad Request
+
+TODO: provide reason for receiving this result
+
 * 500 Internal Server Error
 
 ---
