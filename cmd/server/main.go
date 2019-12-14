@@ -104,10 +104,10 @@ func postHandler(a adding.Service) httprouter.Handle {
 		w.WriteHeader(http.StatusAccepted)
 		w.Header().Set("Content-Type", "application/json")
 
-		// populate a ReqResponse struct for the HTTP response, with
+		// populate a PostResponse struct for the HTTP response, with
 		// selected fields of Request (which will have many more fields
 		// than we want to return here)
-		response := adding.ReqResponse{
+		response := adding.PostResponse{
 			RequestID:    newReq.RequestID,
 			CustomerID:   newReq.CustomerID,
 			MediaFileURI: newReq.MediaFileURI,

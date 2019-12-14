@@ -98,11 +98,11 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			// the request comes from Cloud Tasks.
 			log.Printf("%s Invalid Task: No X-Appengine-Taskname request header found\n", serviceName)
 
-			// TODO: send error and return when we don't find the expected header
-			// http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
-			// return
+			// send error and return when we don't find the expected header
+			http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
+			return
 		}
-		// taskName := t[0]
+		taskName := t[0]
 
 		// Pull useful headers from Task request.
 		q, ok := r.Header["X-Appengine-Queuename"]
@@ -134,15 +134,18 @@ func taskHandler(a adding.Service) httprouter.Handle {
 
 		// TODO: validation incoming request
 
-		// TODO: create task on the next pipeline stage's queue with updated request
+		// The QA'd, highest-confidence transcript becomes FinalTranscript
 		newRequest := incomingRequest
+		newRequest.FinalTranscript = incomingRequest.RawTranscript[0].Transcript
+
+		// create task on the next pipeline stage's queue with updated request
 		a.AddRequest(newRequest)
 
 		// Log & output details of the created task.
-		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
-		// 	serviceName, queueName, taskName, newRequest)
-		output := fmt.Sprintf("%s.taskHandler completed: queue %q, payload: %+v",
-			serviceName, queueName, newRequest)
+		output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
+			serviceName, queueName, taskName, newRequest)
+		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, payload: %+v",
+		// 	serviceName, queueName, newRequest)
 		log.Println(output)
 
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.
