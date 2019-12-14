@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -136,22 +135,14 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		}
 		log.Printf("%s.taskHandler - decoded request: %+v\n", serviceName, incomingRequest)
 
-		// HACK: confirm audio file already in GCS bucket
-		var intro = incomingRequest.MediaFileURI[0:5]
-		if intro != "gs://" {
-			log.Printf("%s.taskHandler, only \"gs://\" URIs supported (temporary): %q", serviceName, incomingRequest.MediaFileURI)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
 		// ********** ********** ********** ********** **********
 
 		// Overall flow:
-		//   1. extract file URI from request (only files in GCS buckets supported at this point)
+		//   1. extract file URI from Request (only files in GCS buckets supported at this point)
 		//   2. if needed, convert file to a supported format
 		// 	 3. submit file to Speech-to-Text service
-		//   4. update request
-		//   5. add request to next queue in the pipeline
+		//   4. update Request with the provided transcription(s)
+		//   5. add Request to next queue in the pipeline
 
 		//
 		// Libraries to investigate re: MP3 -> WAV
@@ -173,6 +164,16 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		//  "ffmpeg won't execute properly in google app engine standard nodejs",
 		//  https://stackoverflow.com/questions/57350148/ffmpeg-wont-execute-properly-in-google-app-engine-standard-nodejs
 
+		// TODO: convert the media file if needed
+
+		// !!! HACK !!! confirm audio file already in GCS bucket
+		var intro = incomingRequest.MediaFileURI[0:5]
+		if intro != "gs://" {
+			log.Printf("%s.taskHandler, only \"gs://\" URIs supported (temporary): %q", serviceName, incomingRequest.MediaFileURI)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		ctx := context.Background()
 		client, err := speech.NewClient(ctx)
 		if err != nil {
@@ -182,33 +183,37 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		}
 
 		var resp *speechpb.LongRunningRecognizeResponse
-		if resp, err = sendGCS(os.Stdout, client, incomingRequest.MediaFileURI); err != nil {
+		if resp, err = submitGoogleSpeechToText(client, incomingRequest.MediaFileURI); err != nil {
 			http.Error(w, "Internal Error", http.StatusInternalServerError)
 			return
 		}
 
-		// Print the results.
+		// create new Request struct, add transcription results to it
+		newRequest := incomingRequest
+
+		// save in the Request struct all alternative translations
 		for _, result := range resp.Results {
 			for _, alt := range result.Alternatives {
-				fmt.Fprintf(w, "\"%v\" (confidence=%3f)\n", alt.Transcript, alt.Confidence)
+				temp := new(adding.RawResults)
+				temp.Transcript = alt.Transcript
+				temp.Confidence = alt.Confidence
+				newRequest.RawTranscript = append(newRequest.RawTranscript, *temp)
+				// fmt.Fprintf(w, "\"%v\" (confidence=%3f)\n", alt.Transcript, alt.Confidence)
 			}
 		}
+		log.Printf("%s.taskHandler, request %s, ML transcription: %+v\n", serviceName, newRequest.RequestID, newRequest.RawTranscript)
 
-		// ********** ********** ********** ********** **********
-
-		// TODO: modify request as needed
-
-		// TODO: create task on the next pipeline stage's queue with updated request
-		newRequest := incomingRequest
+		// create task on the next pipeline stage's queue with updated Request
 		a.AddRequest(newRequest)
 
-		// Log & output details of the created task.
+		// Log details of the created task.
 		output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
 			serviceName, queueName, taskName, newRequest)
 		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, payload: %+v",
 		// 	serviceName, queueName, newRequest)
 		log.Println(output)
 
+		// Report success/failure to Cloud Tasks.
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.
 		// For example, http.Error(w, "Internal Server Error: Task Processing", http.StatusInternalServerError)
 		w.WriteHeader(http.StatusOK)
@@ -217,13 +222,14 @@ func taskHandler(a adding.Service) httprouter.Handle {
 	}
 }
 
-func sendGCS(w io.Writer, client *speech.Client, gcsURI string) (*speechpb.LongRunningRecognizeResponse, error) {
+func submitGoogleSpeechToText(client *speech.Client, gcsURI string) (*speechpb.LongRunningRecognizeResponse, error) {
 	// "Transcribing long audio files", https://cloud.google.com/speech-to-text/docs/async-recognize
 	serviceName := Config.ServiceName
-	// log.Printf("%s.sendGCS enter, gcsURI %q\n", serviceName, gcsURI)
+	// log.Printf("%s.submitGoogleSpeechToText enter, gcsURI %q\n", serviceName, gcsURI)
 
 	// Send the contents of the audio file with the encoding and
 	// and sample rate information to be transcripted.
+	// For MP3, DO NOT include Encoding or SampleRateHertz
 	ctx := context.Background()
 	req := &speechpb.LongRunningRecognizeRequest{
 		Config: &speechpb.RecognitionConfig{
@@ -241,22 +247,16 @@ func sendGCS(w io.Writer, client *speech.Client, gcsURI string) (*speechpb.LongR
 
 	op, err := client.LongRunningRecognize(ctx, req)
 	if err != nil {
-		log.Printf("%s.sendGCS, error from LongRunningRecognize(req: %+v), error: %v", serviceName, req, err)
+		log.Printf("%s.submitGoogleSpeechToText, error from LongRunningRecognize(req: %+v), error: %v", serviceName, req, err)
 		return nil, err
 	}
 	resp, err := op.Wait(ctx)
 	if err != nil {
-		log.Printf("%s.sendGCS, Wait() error: %v", serviceName, err)
+		log.Printf("%s.submitGoogleSpeechToText, Wait() error: %v", serviceName, err)
 		return nil, err
 	}
-	log.Printf("%s.sendGCS, resp.Results: %+v", serviceName, resp.Results)
+	// log.Printf("%s.submitGoogleSpeechToText, resp.Results: %+v", serviceName, resp.Results)
 
-	// Print the results.
-	for _, result := range resp.Results {
-		for _, alt := range result.Alternatives {
-			fmt.Fprintf(w, "\"%v\" (confidence=%3f)\n", alt.Transcript, alt.Confidence)
-		}
-	}
 	return resp, nil
 }
 

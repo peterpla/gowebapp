@@ -1,4 +1,4 @@
-package rest
+package main
 
 import (
 	"bytes"
@@ -28,9 +28,9 @@ func TestRequestsPost(t *testing.T) {
 	tests := []test{
 		{name: "POST requests",
 			endpoint: "/requests",
-			body:     `{ "customer_id": "12345", "media_url": "http://www.twilio.com/myfile.mp3", "custom_config": false }`,
-			respBody: "New request added.",
-			status:   http.StatusCreated},
+			body:     `{ "customer_id": "12345", "media_url": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-02.mp3", "custom_config": false }`,
+			respBody: "accepted_at",
+			status:   http.StatusAccepted},
 	}
 
 	storage := new(memory.Storage)
@@ -48,7 +48,7 @@ func TestRequestsPost(t *testing.T) {
 		// log.Printf("Test %s: %s", tc.name, url)
 
 		router := httprouter.New()
-		router.POST("/api/v1/requests", addRequest(adder))
+		router.POST("/api/v1/requests", postHandler(adder))
 
 		// POST it
 		resp, err := http.Post(url, "application/json", bytes.NewBufferString(tc.body))

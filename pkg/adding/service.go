@@ -37,7 +37,7 @@ func NewService(r Repository) Service {
 // AddRequest adds the request to be processed
 func (s *service) AddRequest(req Request) Request {
 	sn := serviceInfo.GetServiceName()
-	// log.Printf("%s.adding.AddRequest enter, req: %+v\n", sn, req)
+	log.Printf("%s.adding.AddRequest enter, req: %+v\n", sn, req)
 
 	newReq := req
 	// TODO: validate req object

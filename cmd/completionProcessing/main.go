@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
@@ -134,22 +135,42 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		// TODO: validation incoming request
 
 		// TODO: establish what constitutes "completion processing"
-		// newRequest := incomingRequest
-		// a.AddRequest(newRequest)
-		log.Printf("%s: request processing completed!", serviceName)
 
-		// Log & output details of the created task.
-		output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
-			serviceName, queueName, taskName, incomingRequest)
-		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, payload: %+v",
-		// 	serviceName, queueName, incomingRequest)
-		log.Println(output)
+		// TODO: communicate status to the client.
+		// For detailed discussions of how to return status to the client upon completion of a long-running request, see:
+		// - "REST and long-running jobs", https://farazdagi.com/2014/rest-and-long-running-jobs/
+		// - "Long running REST API with queues", https://stackoverflow.com/a/33011965/10649045 .
 
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.
 		// For example, http.Error(w, "Internal Server Error: Task Processing", http.StatusInternalServerError)
 		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
 
-		// log.Printf("%s.taskHandler - exit hander\n", serviceName)
+		// !!! HACK !!! write the response to the client as if responding to the original POST request
+
+		// populate a CompletionResponse struct for the HTTP response, with
+		// selected fields of Request
+		response := adding.CompletionResponse{
+			RequestID:       incomingRequest.RequestID,
+			CustomerID:      incomingRequest.CustomerID,
+			MediaFileURI:    incomingRequest.MediaFileURI,
+			AcceptedAt:      incomingRequest.AcceptedAt.Format(time.RFC3339Nano),
+			CompletedAt:     time.Now().UTC().Format(time.RFC3339Nano),
+			FinalTranscript: incomingRequest.FinalTranscript,
+		}
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Printf("%s.postHandler, json.NewEncoder.Encode error: +%v\n", serviceName, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Log & output completion status.
+		output := fmt.Sprintf("%s.taskHandler =====> Request Completed <==== : queue %q, task %q, response: %+v",
+			serviceName, queueName, taskName, response)
+		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, payload: %+v",
+		// 	serviceName, queueName, incomingRequest)
+		log.Println(output)
 	}
 }
 
