@@ -23,7 +23,7 @@ type GCT struct {
 
 // Add the request to the repository, i.e., Google Cloud Tasks queue
 func (g *GCT) AddRequest(req adding.Request) error {
-	// log.Printf("queue.AddRequest - enter\n")
+	// log.Printf("%s.queue.AddRequest - enter\n", serviceInfo.GetServiceName())
 
 	// assemble the Task queue path components
 	projectID := viper.GetString("ProjectID")
@@ -51,8 +51,8 @@ func (g *GCT) AddRequest(req adding.Request) error {
 
 // AddToCloudTasksQ handles the Cloud Tasks-specifics to add to a queue
 func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandleRequest, handlerEndpoint string, requestJSON []byte) (taskID int, err error) {
-	// log.Printf("AddToCloudTasksQ entered, projectID: %q, locationID: %q, queueName: %q, serviceToHandleRequest: %q, handlerEndpoint: %q, requestJSON: %q\n",
-	// 	projectID, locationID, queueName, serviceToHandleRequest, handlerEndpoint, string(requestJSON))
+	// log.Printf("%s.AddToCloudTasksQ entered, projectID: %q, locationID: %q, queueName: %q, serviceToHandleRequest: %q, handlerEndpoint: %q, requestJSON: %q\n",
+	// 	serviceInfo.GetServiceName(), projectID, locationID, queueName, serviceToHandleRequest, handlerEndpoint, string(requestJSON))
 
 	// Create a new Cloud Tasks client instance.
 	// See https://godoc.org/cloud.google.com/go/cloudtasks/apiv2

@@ -11,8 +11,8 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/peterpla/lead-expert/pkg/storage/memory"
 	"github.com/peterpla/lead-expert/pkg/adding"
+	"github.com/peterpla/lead-expert/pkg/storage/memory"
 )
 
 func TestRequestsPost(t *testing.T) {

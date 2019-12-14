@@ -1,8 +1,6 @@
 package memory
 
 import (
-	"log"
-
 	"github.com/peterpla/lead-expert/pkg/adding"
 )
 
@@ -16,18 +14,10 @@ type Storage struct {
 func (m *Storage) AddRequest(req adding.Request) error {
 	// log.Printf("memory.AddRequest - enter\n")
 
-	newRequest := adding.Request{
-		RequestID:    len(m.requests) + 1,
-		CustomerID:   req.CustomerID,
-		MediaFileURL: req.MediaFileURL,
-		CustomConfig: false,
-	}
+	// req has been validated previously, so can simply add it
 
-	// TODO: pick up custom configuration from request
-	// (if CustomConfig == True) or defaults from customer profile
-
-	m.requests = append(m.requests, newRequest)
-	log.Printf("memory.AddRequest exiting, requests: %+v\n", m.requests)
+	m.requests = append(m.requests, req)
+	// log.Printf("memory.AddRequest exiting, requests: %+v\n", m.requests)
 
 	return nil
 }

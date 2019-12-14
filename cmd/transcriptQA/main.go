@@ -43,7 +43,7 @@ func main() {
 	serviceInfo.RegisterServiceName(Config.ServiceName)
 	serviceInfo.RegisterQueueName(Config.QueueName)
 	serviceInfo.RegisterNextServiceName(Config.NextServiceName)
-	log.Println(serviceInfo.DumpServiceInfo())
+	// log.Println(serviceInfo.DumpServiceInfo())
 
 	router := httprouter.New()
 	Config.Router = router

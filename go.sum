@@ -114,9 +114,6 @@ github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/9
 github.com/peterh/liner v0.0.0-20170317030525-88609521dc4b/go.mod h1:xIteQHvHuaLYG9IFj6mSxM0fCKrs34IrEQUhOYuGPHc=
 github.com/peterpla/gowebapp v0.0.0-20191204041646-6164e8e27dfc h1:wW2/gR3kBao9lF3rffY0T/rDMbeeuoIgMacj/vHn+og=
 github.com/peterpla/gowebapp v0.0.0-20191204041646-6164e8e27dfc/go.mod h1:fmMrQ+dHNiaO+hgNE/UlT04ocuUmgwJY9os9XyqRqo8=
-github.com/peterpla/lead-expert v0.0.0-20191204041646-6164e8e27dfc/go.mod h1:fmMrQ+dHNiaO+hgNE/UlT04ocuUmgwJY9os9XyqRqo8=
-github.com/peterpla/lead-expert v0.0.0-20191208144945-3e3c0e60f6f5 h1:fqbRdFyvFpRVY1O7ql1fUvAw8ntwW6jitowjH23T7DU=
-github.com/peterpla/lead-expert v0.0.0-20191208144945-3e3c0e60f6f5/go.mod h1:JEXh8395jYvPtSFsuqIlIewm2kchfVuO1yDcYOyQPFk=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/profile v0.0.0-20170413231811-06b906832ed0/go.mod h1:hJw3o1OdXxsrSjjVksARp5W95eeEaEfptyVZyv6JUPA=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

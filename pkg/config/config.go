@@ -147,7 +147,7 @@ func GetConfig(cfg *Config) error {
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		log.Fatalf("GetConfig, error from storage.NewClient: %v", err)
+		log.Printf("GetConfig, NewClient(), error: %+v\n", err)
 		return err
 	}
 
@@ -156,7 +156,7 @@ func GetConfig(cfg *Config) error {
 	oh := bh.Object(configFileEncrypted)
 	r, err := oh.NewReader(ctx)
 	if err != nil {
-		log.Fatalf("GetConfig, error from client.Bucket.Object.NewReader: %v\n... EncryptedBucket: %q, cfg.ConfigFile +\".enc\": %q\n", err, cfg.EncryptedBucket, configFileEncrypted)
+		log.Printf("GetConfig, opening %s from bucket %q, error: %+v\n", configFileEncrypted, cfg.EncryptedBucket, err)
 		return err
 	}
 	defer r.Close()
@@ -176,7 +176,7 @@ func GetConfig(cfg *Config) error {
 	//    https://medium.com/google-cloud/gcs-kms-and-wrapped-secrets-e5bde6b0c859
 	kmsClient, err := cloudkms.NewKeyManagementClient(ctx)
 	if err != nil {
-		log.Fatalf("GetConfig, error from NewKeyManagementClient: %v", err)
+		log.Printf("GetConfig, NewKeyManagementClient(), error: %+v\n", err)
 		return err
 	}
 	dresp, err := kmsClient.Decrypt(ctx,
@@ -185,7 +185,7 @@ func GetConfig(cfg *Config) error {
 			Ciphertext: cfgEncoded,
 		})
 	if err != nil {
-		log.Fatalf("GetConfig, error from Decrypt: %v", err)
+		log.Printf("GetConfig, Decrypt(keyName: %q), error: %+v\n", keyName, err)
 		return err
 	}
 	// dresp.Plaintext is the decrypted config file contents

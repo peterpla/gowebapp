@@ -49,7 +49,9 @@ Example Request Body:
 
 Body, JSON: *(key order is random, no ordering)*
 
-* **"RequestID"** (always) - string - RFC 4122
+* **"RequestID"** (always) - string - RFC4112
+
+    UUID identifier of the Request, created by the server. [RFC4112](https://tools.ietf.org/html/rfc4122) version 4.
 
     Unique identifier of the Request, created by the server. UUID version 4.
 
@@ -61,15 +63,21 @@ Example Response Body:
 
 ```json
 {
-  "RequestID":      "0e1c1a26-1201-416a-b035-ddfe73a56e2d",
-  "AcceptedAt":      "2019-06-22T21:54:56.714Z",
+  "RequestID":      "269fd581-35aa-465d-81df-c0295034c723",
+  "CreatedAt":      "2019-06-22T21:54:56.714Z",
 }
 ```
 
 #### Response Status
 
-* 202 Accepted - TODO: how final status (i.e., outcome) is transmitted to client
-* 400 Bad Request - TODO: list reasons for receiving this result
+* 202 Accepted - success
+
+TODO: see [REST and long-running jobs](https://farazdagi.com/2014/rest-and-long-running-jobs/) and [Long running REST API with queues](https://stackoverflow.com/a/33011965/10649045) for detailed discussions of how to return status to the client upon completion of a long-running request.
+
+* 400 Bad Request
+
+TODO: provide reason for receiving this result
+
 * 500 Internal Server Error
 
 ---

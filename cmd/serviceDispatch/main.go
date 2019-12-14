@@ -31,7 +31,7 @@ func init() {
 
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
-	log.Printf("Enter initial-request.main, Config: %+v\n", Config)
+	// log.Printf("Enter initial-request.main, Config: %+v\n", Config)
 
 	// set ServiceName and QueueName appropriately
 	prefix := "TaskServiceDispatch"
@@ -43,7 +43,7 @@ func main() {
 	serviceInfo.RegisterServiceName(Config.ServiceName)
 	serviceInfo.RegisterQueueName(Config.QueueName)
 	serviceInfo.RegisterNextServiceName(Config.NextServiceName)
-	log.Println(serviceInfo.DumpServiceInfo())
+	// log.Println(serviceInfo.DumpServiceInfo())
 
 	router := httprouter.New()
 	Config.Router = router
@@ -75,7 +75,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	serviceName := Config.ServiceName
 	// log.Printf("Enter %s.indexHandler\n", serviceName)
 	if r.URL.Path != "/" {
-		log.Printf("%s.indexHandler, r.URL.Path: %s, will respond NotFound\n", serviceName, r.URL.Path)
+		// log.Printf("%s.indexHandler, r.URL.Path: %s, will respond NotFound\n", serviceName, r.URL.Path)
 		http.NotFound(w, r)
 		return
 	}
@@ -86,9 +86,9 @@ func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 // taskHandler processes task requests.
 func taskHandler(a adding.Service) httprouter.Handle {
 	serviceName := Config.ServiceName
-	log.Printf("%s.taskHandler - enter/exit\n", serviceName)
+	// log.Printf("%s.taskHandler - enter/exit\n", serviceName)
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		log.Printf("%s.taskHandler - enter handler\n", serviceName)
+		// log.Printf("%s.taskHandler - enter handler\n", serviceName)
 		// log.Printf("... request: %+v\n", r)
 		// log.Printf("... params: %+v\n", p)
 
@@ -145,13 +145,13 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		// For example, http.Error(w, "Internal Server Error: Task Processing", http.StatusInternalServerError)
 		w.WriteHeader(http.StatusOK)
 
-		log.Printf("%s.taskHandler - exit hander\n", serviceName)
+		// log.Printf("%s.taskHandler - exit hander\n", serviceName)
 	}
 }
 
 func myNotFound(w http.ResponseWriter, r *http.Request) {
-	serviceName := Config.ServiceName
-	log.Printf("%s.myNotFound, request for %s not routed\n", serviceName, r.URL.Path)
+	// serviceName := Config.ServiceName
+	// log.Printf("%s.myNotFound, request for %s not routed\n", serviceName, r.URL.Path)
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
