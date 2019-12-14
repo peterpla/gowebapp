@@ -14,17 +14,17 @@ TODO: authentication and authorization
 
 Body, JSON: *(no key order is assumed or required)*
 
-* **"CustomerID"** (required) - string
+* **"customer_id"** (required) - string
 
     Primary key for identifying this customer's profile.
 
-* **"MediaFileURL"** (required) - string
+* **"media_uri"** (required) - string
 
-    URL to access the media file.
+    URI to access the media file.
   
 TODO: each supported external services - e.g., Twilio and Dropbox - will need an adapter to use that service's APIs to read the file.
 
-* **"CustomConfig"** (optional) - boolean
+* **"custom_config"** (optional) - boolean
 
     Flag that indicates whether the request Body includes a `config` section that overrides the customer's profile setting for transcription processing.
 
@@ -38,43 +38,49 @@ Example Request Body:
 
 ```json
 {
-  "CustomerID":   "0123456",
-  "MediaFileURI": "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0"
+  "customer_id":   "0123456",
+  "media_uri": "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0"
 }
 ```
+
+**HACK!!!**: only Google Cloud Storage URIs in the form `gs://` are currently accepted, and the media file to be transcribed must already be present in the GCS bucket `elated-practice-224603.appspot.com/audio_uploads/`.
 
 #### Outputs - POST /requests
 
 Body, JSON: *(key order is random, no ordering)*
 
-* **"RequestID"** (always) - string
+* **"request_id"** (always) - string - RFC4112
 
-    UUID identifier of the Request, created by the server. [RFC 4112](https://tools.ietf.org/html/rfc4122) version 4.
+    UUID identifier of the Request, created by the server. [RFC4112](https://tools.ietf.org/html/rfc4122) version 4.
 
-* **"CreatedAt"** (always) - string - RFC3339
+* **"customer_id"** (always) - string
 
-    Date and time the Request was created, in RFC3339 format. Always expressed as UTC/GMT.
+    From the request, unchanged
 
-TODO: provide estimated cost feedback to the requestor.
+* **"media_uri"** (always) - string
 
-* **"EstimatedCost"** (always) - float
+    From the request, unchanged.
 
-    Server-generated estimate of the cost (USD) to produce the transcription, based on the configuration provided (if `CustomConfig` was specified) or the configuration from the customer's profile.
+* **"accepted_at"** (always) - string - RFC3339
+
+    Date and time the Request was accepted (processing began), in [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
 
 Example Response Body:
 
 ```json
 {
-  "RequestID":      "269fd581-35aa-465d-81df-c0295034c723",
-  "CreatedAt":      "2019-06-22T21:54:56.714Z",
+  "request_id":   "269fd581-35aa-465d-81df-c0295034c723",
+  "customer_id":  "0123456",
+  "media_uri":    "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0",
+  "accepted_at":  "2019-12-14T16:36:47.60642Z",
 }
 ```
 
 #### Response Status
 
-* 201 Created - success
+* 202 Accepted - success
 
-TODO: consider 202 Accepted, see [REST and long-running jobs](https://farazdagi.com/2014/rest-and-long-running-jobs/) and [Long running REST API with queues](https://stackoverflow.com/a/33011965/10649045) for detailed discussions of how to handle this.
+TODO: see [REST and long-running jobs](https://farazdagi.com/2014/rest-and-long-running-jobs/) and [Long running REST API with queues](https://stackoverflow.com/a/33011965/10649045) for detailed discussions of how to return status to the client upon completion of a long-running request.
 
 * 400 Bad Request
 
@@ -92,13 +98,15 @@ Read the transcription Request with the specified `RequestID`.
 
 ### GET /requests
 
-Read the first 20 Requests. `GET /requests` is equivalent to `GET /requests?limit=20&offset=0`, see below.
+Read the first 20 Requests, in "most recent first" order (i.e., reverse chronological order) based on the requests' `AcceptedAt` values.
+
+`GET /requests` is equivalent to `GET /requests?limit=20&offset=0`, see below.
 
 ---
 
 ### GET /requests?limit=\{n}&offset=\{m}
 
-Read `n` Requests starting at offset `m`. Records will be returned "most recent first" order (i.e., in reverse chronological order) based on the requests' `CreatedAt` values.
+Read `n` Requests starting at offset `m`. Records will be returned "most recent first" order (i.e., reverse chronological order) based on the requests' `AcceptedAt` values.
 
 ---
 

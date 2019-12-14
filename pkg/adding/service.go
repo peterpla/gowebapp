@@ -3,6 +3,7 @@ package adding
 import (
 	"errors"
 	"log"
+	"time"
 
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
@@ -45,6 +46,7 @@ func (s *service) AddRequest(req Request) Request {
 	if err := s.bR.AddRequest(req); err != nil {
 		log.Printf("%s.adding.AddRequest, bR.AddRequest error: %+v, req: +%v\n", sn, err, req)
 	}
+	newReq.AcceptedAt = time.Now().UTC()
 
 	// log.Printf("%s.adding.AddRequest exiting, newReq: %+v\n", sn, newReq)
 	return newReq

@@ -1,5 +1,7 @@
 #!/usr/bin/bash
 
+# move to project root
+cd /Users/peterplamondon/go/src/github.com/peterpla/lead-expert/
 # set gcloud configuration environment for this deployment
 #gcloud auth list
 #gcloud config set account peterpla@gmail.com
@@ -21,8 +23,8 @@ gcloud app deploy --verbosity=warning ./cmd/server/app.yaml ./cmd/initialRequest
     ./cmd/serviceDispatch/app.yaml ./cmd/transcriptionGCP/app.yaml \
     ./cmd/transcriptionComplete/app.yaml ./cmd/transcriptQA/app.yaml \
     ./cmd/transcriptQAComplete/app.yaml ./cmd/tagging/app.yaml \
-    ./cmd/taggingQA/app.yaml ./cmd/taggingQAComplete/app.yaml \
-    ./cmd/completionProcessing/app.yaml
+    ./cmd/taggingComplete/app.yaml ./cmd/taggingQA/app.yaml \
+    ./cmd/taggingQAComplete/app.yaml ./cmd/completionProcessing/app.yaml
 
 # list all services in the current project
 gcloud app services list

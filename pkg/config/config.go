@@ -25,7 +25,7 @@ import (
 // (gdeploy.sh deploys the app to Google App Engine, encrypting the local
 // configuration file using Cloud KMS and writing it to Cloud Storage.)
 func GetConfig(cfg *Config) error {
-	// log.Printf("Entering, cfg: %+v", cfg)
+	// log.Printf("%s, entering Config, cfg: %+v", sn, cfg)
 
 	// ***** ***** process command line flags ***** *****
 	// appname --v --help
@@ -33,7 +33,7 @@ func GetConfig(cfg *Config) error {
 	pflag.BoolVar(&cfg.Help, "help", false, "")
 	pflag.Parse()
 	if err := viper.BindPFlags(pflag.CommandLine); err != nil {
-		log.Fatalf("error from viper.BindPFlags: %v", err)
+		log.Fatalf("GetConfig, error from viper.BindPFlags: %v", err)
 	}
 
 	if cfg.Help {
@@ -132,13 +132,14 @@ func GetConfig(cfg *Config) error {
 
 	for _, b := range bindings {
 		if err := viper.BindEnv(b.structField, b.envVar); err != nil {
-			log.Fatalf("error from viper.BindEnv: %v", err)
+			log.Fatalf("GetConfig, error from viper.BindEnv: %v", err)
 		}
 	}
 	viper.AutomaticEnv()
 	// unmarshall all bound flags and env vars into cfg
 	err := viper.Unmarshal(cfg)
 	if err != nil {
+		log.Fatalf("GetConfig, error from Unmarshal: %v", err)
 		return err
 	}
 
@@ -151,7 +152,9 @@ func GetConfig(cfg *Config) error {
 	}
 
 	configFileEncrypted := cfg.ConfigFile + ".enc"
-	r, err := client.Bucket(cfg.EncryptedBucket).Object(configFileEncrypted).NewReader(ctx)
+	bh := client.Bucket(cfg.EncryptedBucket)
+	oh := bh.Object(configFileEncrypted)
+	r, err := oh.NewReader(ctx)
 	if err != nil {
 		log.Printf("GetConfig, opening %s from bucket %q, error: %+v\n", configFileEncrypted, cfg.EncryptedBucket, err)
 		return err
@@ -161,6 +164,7 @@ func GetConfig(cfg *Config) error {
 	// read the encrypted file contants
 	cfgEncoded, err := ioutil.ReadAll(r)
 	if err != nil {
+		log.Fatalf("GetConfig, error from ReadAll: %v", err)
 		return err
 	}
 
@@ -185,12 +189,13 @@ func GetConfig(cfg *Config) error {
 		return err
 	}
 	// dresp.Plaintext is the decrypted config file contents
-	// log.Printf("Config: %s", dresp.Plaintext)
+	// log.Printf("GetConfig: decrypted %s: %s", cfg.ConfigFile, dresp.Plaintext)
 
 	// give Viper the (decrypted) configuration file to process
 	viper.SetConfigType("yaml")
 	err = viper.ReadConfig(bytes.NewBuffer(dresp.Plaintext))
 	if err != nil {
+		log.Fatalf("GetConfig, error from viper.ReadConfig: %v", err)
 		return err
 	}
 
@@ -217,6 +222,7 @@ func GetConfig(cfg *Config) error {
 		cfg.Adder = adding.NewService(storage)
 
 	default:
+		log.Fatalf("GetConfig, unsupported cfg.StorageType: %v", cfg.StorageType)
 		panic("unsupported storageType")
 	}
 

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
@@ -100,11 +101,32 @@ func postHandler(a adding.Service) httprouter.Handle {
 		// add the request (e.g., to a queue) for subsequent processing
 		newReq := a.AddRequest(newRequest)
 
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusAccepted)
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode("New request added.")
 
-		log.Printf("%s.postHandler, %+v\n", sn, newReq)
+		// populate a ReqResponse struct for the HTTP response, with
+		// selected fields of Request (which will have many more fields
+		// than we want to return here)
+		response := adding.ReqResponse{
+			RequestID:    newReq.RequestID,
+			CustomerID:   newReq.CustomerID,
+			MediaFileURI: newReq.MediaFileURI,
+			AcceptedAt:   newReq.AcceptedAt.Format(time.RFC3339Nano),
+		}
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Printf("%s.postHandler, json.NewEncoder.Encode error: +%v\n", sn, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// responseFormat := `{ "RequestID": %q, "CustomerID": %s, "MediaFileURI": %q, "AcceptedAt": %q, }`
+		// responseString := fmt.Sprintf(responseFormat,
+		// 	newReq.RequestID, newReq.CustomerID, newReq.MediaFileURI,
+		// 	newReq.AcceptedAt.Format(time.RFC3339Nano))
+		// _ = json.NewEncoder(w).Encode(responseString)
+
+		log.Printf("%s.postHandler, %+v\n", sn, response)
 	}
 }
 

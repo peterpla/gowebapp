@@ -23,6 +23,9 @@
 config.yaml
 config.yaml.enc
 
+# Project-specific files
+gcp_logs/
+
 # Binaries for programs and plugins
 *.exe
 *.exe~

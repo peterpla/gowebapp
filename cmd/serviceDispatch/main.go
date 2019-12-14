@@ -133,7 +133,6 @@ func taskHandler(a adding.Service) httprouter.Handle {
 
 		// TODO: validation incoming request
 
-		// TODO: create task on TranscriptionGCP queue with updated request
 		newRequest := incomingRequest
 		a.AddRequest(newRequest)
 
