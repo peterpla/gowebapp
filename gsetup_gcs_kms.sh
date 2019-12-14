@@ -19,7 +19,7 @@ gcloud kms keyrings list --location $KMS_LOCATION
 gcloud kms keys list --location $KMS_LOCATION --keyring $KMS_KEYRING
 
 # if NOT using GAE default service account, create a new service account AND adjust gsutil commands below
-#gcloud iam service-accounts create gowebapp-gcs-reader
+#gcloud iam service-accounts create lead-expert-gcs-reader
 # ... with the most minimal set of permissions to access the encrypted data object
 #gsutil iam ch serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com:roles/storage.objects.get \
 #    gs://`echo $ENCRYPTED_BUCKET`/config.yaml.enc

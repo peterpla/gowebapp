@@ -19,7 +19,7 @@ env_variables:
   PROJECT_ID: elated-practice-224603
   STORAGE_LOCATION: us-west2
   STATIC_FILES_BUCKET: elated-practice-224603
-  ENCRYPTED_BUCKET: elated-practice-224603-gowebapp-secret
+  ENCRYPTED_BUCKET: elated-practice-224603-lead-expert-secret
   CONFIG_FILE: config.yaml
   KMS_LOCATION: us-west2
   KMS_KEYRING: devkeyring

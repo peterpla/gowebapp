@@ -12,10 +12,10 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
 
-	"github.com/peterpla/gowebapp/pkg/adding"
-	"github.com/peterpla/gowebapp/pkg/config"
-	"github.com/peterpla/gowebapp/pkg/middleware"
-	"github.com/peterpla/gowebapp/pkg/serviceInfo"
+	"github.com/peterpla/lead-expert/pkg/adding"
+	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/middleware"
+	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
 var Config config.Config
@@ -43,7 +43,7 @@ func main() {
 	serviceInfo.RegisterServiceName(Config.ServiceName)
 	serviceInfo.RegisterQueueName(Config.QueueName)
 	serviceInfo.RegisterNextServiceName(Config.NextServiceName)
-	log.Println(serviceInfo.DumpServiceInfo())
+	// log.Println(serviceInfo.DumpServiceInfo())
 
 	router := httprouter.New()
 	Config.Router = router
@@ -75,7 +75,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	serviceName := Config.ServiceName
 	// log.Printf("Enter %s.indexHandler\n", serviceName)
 	if r.URL.Path != "/" {
-		log.Printf("%s.indexHandler, r.URL.Path: %s, will respond NotFound\n", serviceName, r.URL.Path)
+		// log.Printf("%s.indexHandler, r.URL.Path: %s, will respond NotFound\n", serviceName, r.URL.Path)
 		http.NotFound(w, r)
 		return
 	}
@@ -98,11 +98,10 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			// the request comes from Cloud Tasks.
 			log.Printf("%s Invalid Task: No X-Appengine-Taskname request header found\n", serviceName)
 
-			// TODO: send error and return when we don't find the expected header
-			// http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
-			// return
+			http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
+			return
 		}
-		// taskName := t[0]
+		taskName := t[0]
 
 		// Pull useful headers from Task request.
 		q, ok := r.Header["X-Appengine-Queuename"]
@@ -130,7 +129,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		log.Printf("%s.taskHandler - decoded request: %+v\n", serviceName, incomingRequest)
+		// log.Printf("%s.taskHandler - decoded request: %+v\n", serviceName, incomingRequest)
 
 		// TODO: validation incoming request
 
@@ -140,10 +139,10 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		log.Printf("%s: request processing completed!", serviceName)
 
 		// Log & output details of the created task.
-		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
-		// 	serviceName, queueName, taskName, newRequest)
-		output := fmt.Sprintf("%s.taskHandler completed: queue %q, payload: %+v",
-			serviceName, queueName, incomingRequest)
+		output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
+			serviceName, queueName, taskName, incomingRequest)
+		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, payload: %+v",
+		// 	serviceName, queueName, incomingRequest)
 		log.Println(output)
 
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.

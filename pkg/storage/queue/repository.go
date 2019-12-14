@@ -12,8 +12,8 @@ import (
 	"github.com/spf13/viper"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
 
-	"github.com/peterpla/gowebapp/pkg/adding"
-	"github.com/peterpla/gowebapp/pkg/serviceInfo"
+	"github.com/peterpla/lead-expert/pkg/adding"
+	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
 // Store data in Google Cloud Tasks queue
@@ -88,17 +88,19 @@ func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandle
 	if err != nil {
 		return 0, fmt.Errorf("queue.AddRequest: %v", err)
 	}
-	// returned Task struct: https://godoc.org/google.golang.org/genproto/googleapis/cloud/tasks/v2#Task
 
-	// TODO: isolate taskname (number), the last component of createdTask.name
+	// isolate taskname (number), the last component of createdTask.name
+	// returned Task struct: https://godoc.org/google.golang.org/genproto/googleapis/cloud/tasks/v2#Task
 	i := strings.LastIndex(createdTask.Name, "/")
 	taskID, err = strconv.Atoi(createdTask.Name[i+1:])
 	if err != nil {
 		return 0, fmt.Errorf("strconv.Atoi: %v", err)
 	}
 
-	log.Printf("queue.AddToCloudTasksQ, task %d created: %+v, on queuePath: %q, Body: %s",
-		taskID, createdTask, queuePath, createdTask.GetAppEngineHttpRequest().GetBody())
+	sn := serviceInfo.GetServiceName()
+	b := string(createdTask.GetAppEngineHttpRequest().GetBody())
+	log.Printf("%s.queue.AddToCloudTasksQ, task %d created: %+v, on queuePath: %q, Body: %s",
+		sn, taskID, createdTask, queuePath, b)
 
 	return taskID, nil
 }

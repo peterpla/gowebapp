@@ -3,7 +3,7 @@ package memory
 import (
 	"log"
 
-	"github.com/peterpla/gowebapp/pkg/adding"
+	"github.com/peterpla/lead-expert/pkg/adding"
 )
 
 // Memory storage keeps data in memory

@@ -1,4 +1,4 @@
-# gowebapp
+# lead-expert
 
 A generic Go web app with APIs and html/template UI, intended to be a "Go app starter kit", i.e., a decent starting point for something real.
 

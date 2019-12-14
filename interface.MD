@@ -43,35 +43,32 @@ Example Request Body:
 }
 ```
 
+**HACK!!!**: only Google Cloud Storage URIs in the form `gs://` are currently accepted, and the media file to be transcribed must already be present in the GCS bucket `elated-practice-224603.appspot.com/audio_uploads/`.
+
 #### Outputs - POST /requests
 
 Body, JSON: *(key order is random, no ordering)*
 
-* **"RequestID"** (always) - string
+* **"RequestID"** (always) - string - RFC 4122
 
-    Unique identifier of the Request, created by the server.
+    Unique identifier of the Request, created by the server. UUID version 4.
 
-* **"CreatedAt"** (always) - string - RFC3339
+* **"AcceptedAt"** (always) - string - RFC3339
 
-    Date and time the Request was created, in RFC3339 format. Always expressed as UTC/GMT.
-
-* **"EstimatedCost"** (always) - float
-
-    Server-generated estimate of the cost (USD) to produce the transcription, based on the configuration provided (if `CustomConfig` was specified) or the configuration from the customer's profile.
+    Date and time the Request was accepted (processing began), in RFC3339 format. Always expressed as UTC/GMT.
 
 Example Response Body:
 
 ```json
 {
-  "RequestID":      "IIhHCa6HHPUZqWLwIl6b5uZx4Ez6",
-  "CreatedAt":      "2019-06-22T21:54:56.714Z",
-  "EstimatedCost":  5.00
+  "RequestID":      "0e1c1a26-1201-416a-b035-ddfe73a56e2d",
+  "AcceptedAt":      "2019-06-22T21:54:56.714Z",
 }
 ```
 
 #### Response Status
 
-* 201 Created - success - TODO: consider 202 Accepted, pending reading the MediaFile
+* 202 Accepted - TODO: how final status (i.e., outcome) is transmitted to client
 * 400 Bad Request - TODO: list reasons for receiving this result
 * 500 Internal Server Error
 
@@ -85,13 +82,15 @@ Read the transcription Request with the specified `RequestID`.
 
 ### GET /requests
 
-Read the first 20 Requests. `GET /requests` is equivalent to `GET /requests?limit=20&offset=0`, see below.
+Read the first 20 Requests, in "most recent first" order (i.e., reverse chronological order) based on the requests' `AcceptedAt` values.
+
+`GET /requests` is equivalent to `GET /requests?limit=20&offset=0`, see below.
 
 ---
 
 ### GET /requests?limit=\{n}&offset=\{m}
 
-Read `n` Requests starting at offset `m`. Records will be returned "most recent first" order (i.e., in reverse chronological order) based on the requests' `CreatedAt` values.
+Read `n` Requests starting at offset `m`. Records will be returned "most recent first" order (i.e., reverse chronological order) based on the requests' `AcceptedAt` values.
 
 ---
 

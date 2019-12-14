@@ -12,10 +12,10 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
 
-	"github.com/peterpla/gowebapp/pkg/adding"
-	"github.com/peterpla/gowebapp/pkg/config"
-	"github.com/peterpla/gowebapp/pkg/middleware"
-	"github.com/peterpla/gowebapp/pkg/serviceInfo"
+	"github.com/peterpla/lead-expert/pkg/adding"
+	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/middleware"
+	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
 var Config config.Config
@@ -99,17 +99,17 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			log.Printf("%s Invalid Task: No X-Appengine-Taskname request header found\n", serviceName)
 
 			// TODO: send error and return when we don't find the expected header
-			// http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
-			// return
+			http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
+			return
 		}
-		// taskName := t[0]
+		taskName := t[0]
 
 		// Pull useful headers from Task request.
-		// q, ok := r.Header["X-Appengine-Queuename"]
-		// queueName := ""
-		// if ok {
-		// 	queueName = q[0]
-		// }
+		q, ok := r.Header["X-Appengine-Queuename"]
+		queueName := ""
+		if ok {
+			queueName = q[0]
+		}
 
 		// Extract the request body for further task details.
 		body, err := ioutil.ReadAll(r.Body)
@@ -134,14 +134,13 @@ func taskHandler(a adding.Service) httprouter.Handle {
 
 		// TODO: validation incoming request
 
-		// TODO: create task on ServiceDispatch queue with updated request
 		newRequest := incomingRequest
 		a.AddRequest(newRequest)
 
 		// Log & output details of the created task.
-		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
-		// 	serviceName, queueName, taskName, newRequest)
-		// log.Println(output)
+		output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
+			serviceName, queueName, taskName, newRequest)
+		log.Println(output)
 
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.
 		// For example, http.Error(w, "Internal Server Error: Task Processing", http.StatusInternalServerError)

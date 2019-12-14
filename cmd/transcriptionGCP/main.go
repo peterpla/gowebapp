@@ -16,10 +16,10 @@ import (
 	"github.com/spf13/viper"
 	speechpb "google.golang.org/genproto/googleapis/cloud/speech/v1"
 
-	"github.com/peterpla/gowebapp/pkg/adding"
-	"github.com/peterpla/gowebapp/pkg/config"
-	"github.com/peterpla/gowebapp/pkg/middleware"
-	"github.com/peterpla/gowebapp/pkg/serviceInfo"
+	"github.com/peterpla/lead-expert/pkg/adding"
+	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/middleware"
+	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
 var Config config.Config
@@ -102,11 +102,11 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			// the request comes from Cloud Tasks.
 			log.Printf("%s Invalid Task: No X-Appengine-Taskname request header found\n", serviceName)
 
-			// TODO: send error and return when we don't find the expected header
-			// http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
-			// return
+			// send error and return when we don't find the expected header
+			http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
+			return
 		}
-		// taskName := t[0]
+		taskName := t[0]
 
 		// Pull useful headers from Task request.
 		q, ok := r.Header["X-Appengine-Queuename"]
@@ -136,13 +136,13 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		}
 		log.Printf("%s.taskHandler - decoded request: %+v\n", serviceName, incomingRequest)
 
-		// TODO: deal with actual file as passed in
-		// HACK: use a fixed file while we get this working
-		incomingRequest.MediaFileURL = "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3"
-		// incomingRequest.MediaFileURL = "gs://elated-practice-224603.appspot.com/audio_uploads/colin.mp3"
-		log.Printf("%s.taskHandler, HACK: MediaFileURL overwritten, incomingRequest: %+v\n", serviceName, incomingRequest)
-
-		// TODO: validate incoming request
+		// HACK: confirm audio file already in GCS bucket
+		var intro = incomingRequest.MediaFileURL[0:5]
+		if intro != "gs://" {
+			log.Printf("%s.taskHandler, only \"gs://\" URIs supported (temporary): %q", serviceName, incomingRequest.MediaFileURL)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		// ********** ********** ********** ********** **********
 
@@ -153,11 +153,6 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		//   4. update request
 		//   5. add request to next queue in the pipeline
 
-		// "Quickstart: Quickstart: Using client libraries",
-		// https://cloud.google.com/speech-to-text/docs/quickstart-client-libraries#make_an_audio_transcription_request
-		//
-		// "How to use Google Speech to Text API to transcribe long audio files?",
-		// https://towardsdatascience.com/how-to-use-google-speech-to-text-api-to-transcribe-long-audio-files-1c886f4eb3e9
 		//
 		// Libraries to investigate re: MP3 -> WAV
 		//  https://github.com/giorgisio/goav - Golang bindings for FFmpeg
@@ -208,10 +203,10 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		a.AddRequest(newRequest)
 
 		// Log & output details of the created task.
-		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
-		// 	serviceName, queueName, taskName, newRequest)
-		output := fmt.Sprintf("%s.taskHandler completed: queue %q, payload: %+v",
-			serviceName, queueName, newRequest)
+		output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
+			serviceName, queueName, taskName, newRequest)
+		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, payload: %+v",
+		// 	serviceName, queueName, newRequest)
 		log.Println(output)
 
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.
