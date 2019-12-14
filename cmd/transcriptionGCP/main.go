@@ -137,9 +137,9 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		log.Printf("%s.taskHandler - decoded request: %+v\n", serviceName, incomingRequest)
 
 		// HACK: confirm audio file already in GCS bucket
-		var intro = incomingRequest.MediaFileURL[0:5]
+		var intro = incomingRequest.MediaFileURI[0:5]
 		if intro != "gs://" {
-			log.Printf("%s.taskHandler, only \"gs://\" URIs supported (temporary): %q", serviceName, incomingRequest.MediaFileURL)
+			log.Printf("%s.taskHandler, only \"gs://\" URIs supported (temporary): %q", serviceName, incomingRequest.MediaFileURI)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -182,7 +182,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		}
 
 		var resp *speechpb.LongRunningRecognizeResponse
-		if resp, err = sendGCS(os.Stdout, client, incomingRequest.MediaFileURL); err != nil {
+		if resp, err = sendGCS(os.Stdout, client, incomingRequest.MediaFileURI); err != nil {
 			http.Error(w, "Internal Error", http.StatusInternalServerError)
 			return
 		}
