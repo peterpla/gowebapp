@@ -14,17 +14,17 @@ TODO: authentication and authorization
 
 Body, JSON: *(no key order is assumed or required)*
 
-* **"CustomerID"** (required) - string
+* **"customer_id"** (required) - string
 
     Primary key for identifying this customer's profile.
 
-* **"MediaFileURL"** (required) - string
+* **"media_uri"** (required) - string
 
-    URL to access the media file.
+    URI to access the media file.
   
 TODO: each supported external services - e.g., Twilio and Dropbox - will need an adapter to use that service's APIs to read the file.
 
-* **"CustomConfig"** (optional) - boolean
+* **"custom_config"** (optional) - boolean
 
     Flag that indicates whether the request Body includes a `config` section that overrides the customer's profile setting for transcription processing.
 
@@ -38,8 +38,8 @@ Example Request Body:
 
 ```json
 {
-  "CustomerID":   "0123456",
-  "MediaFileURI": "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0"
+  "customer_id":   "0123456",
+  "media_uri": "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0"
 }
 ```
 
@@ -49,22 +49,30 @@ Example Request Body:
 
 Body, JSON: *(key order is random, no ordering)*
 
-* **"RequestID"** (always) - string - RFC4112
+* **"request_id"** (always) - string - RFC4112
 
     UUID identifier of the Request, created by the server. [RFC4112](https://tools.ietf.org/html/rfc4122) version 4.
 
-    Unique identifier of the Request, created by the server. UUID version 4.
+* **"customer_id"** (always) - string
 
-* **"AcceptedAt"** (always) - string - RFC3339
+    From the request, unchanged
 
-    Date and time the Request was accepted (processing began), in RFC3339 format. Always expressed as UTC/GMT.
+* **"media_uri"** (always) - string
+
+    From the request, unchanged.
+
+* **"accepted_at"** (always) - string - RFC3339
+
+    Date and time the Request was accepted (processing began), in [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
 
 Example Response Body:
 
 ```json
 {
-  "RequestID":      "269fd581-35aa-465d-81df-c0295034c723",
-  "CreatedAt":      "2019-06-22T21:54:56.714Z",
+  "request_id":   "269fd581-35aa-465d-81df-c0295034c723",
+  "customer_id":  "0123456",
+  "media_uri":    "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0",
+  "accepted_at":  "2019-12-14T16:36:47.60642Z",
 }
 ```
 
