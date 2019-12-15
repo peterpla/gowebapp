@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	speech "cloud.google.com/go/speech/apiv1"
 	"github.com/julienschmidt/httprouter"
@@ -93,6 +94,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		// log.Printf("%s.taskHandler, request: %+v, params: %+v\n", serviceName, r, p)
+		startTime := time.Now().UTC().Format(time.RFC3339Nano)
 
 		// var taskName string
 		t, ok := r.Header["X-Appengine-Taskname"]
@@ -100,8 +102,6 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			// You may use the presence of the X-Appengine-Taskname header to validate
 			// the request comes from Cloud Tasks.
 			log.Printf("%s Invalid Task: No X-Appengine-Taskname request header found\n", serviceName)
-
-			// send error and return when we don't find the expected header
 			http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
 			return
 		}
@@ -133,7 +133,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		log.Printf("%s.taskHandler - decoded request: %+v\n", serviceName, incomingRequest)
+		// log.Printf("%s.taskHandler - decoded request: %+v\n", serviceName, incomingRequest)
 
 		// ********** ********** ********** ********** **********
 
@@ -167,6 +167,11 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		// TODO: convert the media file if needed
 
 		// !!! HACK !!! confirm audio file already in GCS bucket
+		if len(incomingRequest.MediaFileURI) < 5 {
+			log.Printf("%s.taskHandler, MediaFileURI too short: %q", serviceName, incomingRequest.MediaFileURI)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		var intro = incomingRequest.MediaFileURI[0:5]
 		if intro != "gs://" {
 			log.Printf("%s.taskHandler, only \"gs://\" URIs supported (temporary): %q", serviceName, incomingRequest.MediaFileURI)
@@ -201,24 +206,27 @@ func taskHandler(a adding.Service) httprouter.Handle {
 				// fmt.Fprintf(w, "\"%v\" (confidence=%3f)\n", alt.Transcript, alt.Confidence)
 			}
 		}
-		log.Printf("%s.taskHandler, request %s, ML transcription: %+v\n", serviceName, newRequest.RequestID, newRequest.RawTranscript)
+		// log.Printf("%s.taskHandler, request %s, ML transcription: %+v\n", serviceName, newRequest.RequestID, newRequest.RawTranscript)
+
+		// add timestamps and get duration
+		var duration time.Duration
+		if duration, err = newRequest.AddTimestamps("BeginTranscriptionGCP", startTime, "EndTranscriptionGCP"); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		// create task on the next pipeline stage's queue with updated Request
 		a.AddRequest(newRequest)
 
 		// Log details of the created task.
-		output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
-			serviceName, queueName, taskName, newRequest)
-		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, payload: %+v",
-		// 	serviceName, queueName, newRequest)
+		output := fmt.Sprintf("%s.taskHandler completed in %v: queue %q, task %q, newRequest: %+v",
+			serviceName, duration, queueName, taskName, newRequest)
 		log.Println(output)
 
 		// Report success/failure to Cloud Tasks.
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.
 		// For example, http.Error(w, "Internal Server Error: Task Processing", http.StatusInternalServerError)
 		w.WriteHeader(http.StatusOK)
-
-		// log.Printf("%s.taskHandler - exit hander\n", serviceName)
 	}
 }
 

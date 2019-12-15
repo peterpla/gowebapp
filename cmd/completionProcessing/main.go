@@ -91,6 +91,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		// log.Printf("%s.taskHandler, request: %+v, params: %+v\n", serviceName, r, p)
+		startTime := time.Now().UTC()
 
 		// var taskName string
 		t, ok := r.Header["X-Appengine-Taskname"]
@@ -98,7 +99,6 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			// You may use the presence of the X-Appengine-Taskname header to validate
 			// the request comes from Cloud Tasks.
 			log.Printf("%s Invalid Task: No X-Appengine-Taskname request header found\n", serviceName)
-
 			http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
 			return
 		}
@@ -150,12 +150,13 @@ func taskHandler(a adding.Service) httprouter.Handle {
 
 		// populate a CompletionResponse struct for the HTTP response, with
 		// selected fields of Request
+		var timeNow = time.Now().UTC()
 		response := adding.CompletionResponse{
 			RequestID:       incomingRequest.RequestID,
 			CustomerID:      incomingRequest.CustomerID,
 			MediaFileURI:    incomingRequest.MediaFileURI,
-			AcceptedAt:      incomingRequest.AcceptedAt.Format(time.RFC3339Nano),
-			CompletedAt:     time.Now().UTC().Format(time.RFC3339Nano),
+			AcceptedAt:      incomingRequest.AcceptedAt,
+			CompletedAt:     timeNow.Format(time.RFC3339Nano),
 			FinalTranscript: incomingRequest.FinalTranscript,
 		}
 
@@ -165,11 +166,22 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			return
 		}
 
+		// total request processing time
+		var acceptedTime time.Time
+		if acceptedTime, err = time.Parse(time.RFC3339Nano, response.AcceptedAt); err != nil {
+			log.Printf("%s.taskHandler, ERROR: AcceptedAt %s does not parse (RFC3339Nano)\n", serviceName, response.AcceptedAt)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		requestTime := timeNow.Sub(acceptedTime)
+
+		// get  duration
+		now := time.Now().UTC()
+		duration := now.Sub(startTime)
+
 		// Log & output completion status.
-		output := fmt.Sprintf("%s.taskHandler =====> Request Completed <==== : queue %q, task %q, response: %+v",
-			serviceName, queueName, taskName, response)
-		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, payload: %+v",
-		// 	serviceName, queueName, incomingRequest)
+		output := fmt.Sprintf("%s.taskHandler completed in %v =====> Request Processed in %v <==== : queue %q, task %q, response: %+v",
+			serviceName, duration, requestTime, queueName, taskName, response)
 		log.Println(output)
 	}
 }
