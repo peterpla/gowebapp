@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
@@ -90,6 +91,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		// log.Printf("%s.taskHandler, request: %+v, params: %+v\n", serviceName, r, p)
+		startTime := time.Now().UTC().Format(time.RFC3339Nano)
 
 		// var taskName string
 		t, ok := r.Header["X-Appengine-Taskname"]
@@ -97,8 +99,6 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			// You may use the presence of the X-Appengine-Taskname header to validate
 			// the request comes from Cloud Tasks.
 			log.Printf("%s Invalid Task: No X-Appengine-Taskname request header found\n", serviceName)
-
-			// send error and return when we don't find the expected header
 			http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
 			return
 		}
@@ -138,21 +138,24 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		newRequest := incomingRequest
 		newRequest.FinalTranscript = incomingRequest.RawTranscript[0].Transcript
 
+		// add timestamps and get duration
+		var duration time.Duration
+		if duration, err = newRequest.AddTimestamps("BeginTranscriptionQAComplete", startTime, "EndTranscriptionQAComplete"); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		// create task on the next pipeline stage's queue with updated request
 		a.AddRequest(newRequest)
 
 		// Log & output details of the created task.
-		output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
-			serviceName, queueName, taskName, newRequest)
-		// output := fmt.Sprintf("%s.taskHandler completed: queue %q, payload: %+v",
-		// 	serviceName, queueName, newRequest)
+		output := fmt.Sprintf("%s.taskHandler completedin %v: queue %q, task %q, newRequest: %+v",
+			serviceName, duration, queueName, taskName, newRequest)
 		log.Println(output)
 
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.
 		// For example, http.Error(w, "Internal Server Error: Task Processing", http.StatusInternalServerError)
 		w.WriteHeader(http.StatusOK)
-
-		// log.Printf("%s.taskHandler - exit hander\n", serviceName)
 	}
 }
 

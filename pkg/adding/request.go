@@ -1,21 +1,30 @@
 package adding
 
 import (
+	"errors"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
 )
 
+// ErrTimestampsKeyExists - key provided already exists
+var ErrTimestampsKeyExists = errors.New("Timestamps key exists")
+
+// ErrStartTimeInvalid - time provided does not parse
+var ErrStartTimeInvalid = errors.New("Start time invalid")
+
 // Request defines properties of an incoming transcription request
 // to be added
 type Request struct {
-	RequestID       uuid.UUID    `json:"request_id"`
-	CustomerID      string       `json:"customer_id"`
-	MediaFileURI    string       `json:"media_uri"`
-	CustomConfig    bool         `json:"custom_config"`
-	AcceptedAt      time.Time    `json:"accepted_at"`
-	RawTranscript   []RawResults `json:"raw_transcript"`
-	FinalTranscript string       `json:"final_transcript"`
+	RequestID       uuid.UUID         `json:"request_id"`
+	CustomerID      string            `json:"customer_id"`
+	MediaFileURI    string            `json:"media_uri"`
+	CustomConfig    bool              `json:"custom_config"`
+	AcceptedAt      string            `json:"accepted_at"`
+	RawTranscript   []RawResults      `json:"raw_transcript"`
+	FinalTranscript string            `json:"final_transcript"`
+	Timestamps      map[string]string `json:"timestamps"`
 }
 
 // RawResults holds the raw results from ML transcription
@@ -40,4 +49,46 @@ type CompletionResponse struct {
 	AcceptedAt      string    `json:"accepted_at"`
 	FinalTranscript string    `json:"final_transcript"`
 	CompletedAt     string    `json:"completed_at"`
+}
+
+func (req *Request) AddTimestamps(startKey, startTimestamp, endKey string) (time.Duration, error) {
+
+	var badTime time.Duration
+	var startTime time.Time
+	var err error
+
+	if startTime, err = time.Parse(time.RFC3339Nano, startTimestamp); err != nil {
+		log.Printf("adding.AddTimestamps ERROR: startTime %s does not parse (RFC3339Nano)\n", startTimestamp)
+		return badTime, ErrTimestampsKeyExists
+	}
+
+	// initialize map if needed
+	if req.Timestamps == nil {
+		// log.Printf("adding.AddTimestamps initializing Timestamps map in Request\n")
+		req.Timestamps = make(map[string]string)
+	}
+
+	// if startKey already exists, return error
+	startKeyValue, ok := req.Timestamps[startKey]
+	if ok {
+		log.Printf("adding.AddTimestamps ERROR: key %s exists with value %s\n", startKey, startKeyValue)
+		return badTime, ErrTimestampsKeyExists
+	}
+
+	// if endKey already exists, return error
+	endKeyValue, ok := req.Timestamps[endKey]
+	if ok {
+		log.Printf("adding.AddTimestamp ERROR: key %s exists with value %s\n", endKey, endKeyValue)
+		return badTime, ErrTimestampsKeyExists
+	}
+
+	// set startKey to startTimestamp
+	req.Timestamps[startKey] = startTimestamp
+
+	// set endKey to current time
+	now := time.Now().UTC()
+	req.Timestamps[endKey] = now.Format(time.RFC3339Nano)
+	duration := now.Sub(startTime)
+
+	return duration, nil
 }

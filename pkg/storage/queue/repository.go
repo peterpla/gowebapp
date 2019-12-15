@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
@@ -22,8 +21,7 @@ type GCT struct {
 
 // Add the request to the repository, i.e., Google Cloud Tasks queue
 func (g *GCT) AddRequest(req adding.Request) error {
-	sn := serviceInfo.GetServiceName()
-	// log.Printf("%s.queue.AddRequest - enter\n", sn)
+	// log.Printf("%s.queue.AddRequest - enter\n", serviceInfo.GetServiceName())
 
 	// assemble the Task queue path components
 	projectID := viper.GetString("ProjectID")
@@ -37,22 +35,22 @@ func (g *GCT) AddRequest(req adding.Request) error {
 	if err != nil {
 		return fmt.Errorf("queue.AddRequest: %v", err)
 	}
-	log.Printf("%s.queue.AddRequest, requestJSON: %s\n", sn, string(requestJSON))
+	// log.Printf("%s.queue.AddRequest, requestJSON: %s\n", serviceInfo.GetServiceName(), string(requestJSON))
 
 	// taskID, err := g.AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandleRequest, endpoint, requestJSON)
 	_, err = g.AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandleRequest, endpoint, requestJSON)
 	if err != nil {
 		return err
 	}
-	// log.Printf("queue.AddRequest - taskID %d created, exit\n", taskID)
+	// log.Printf("%s.queue.AddRequest - taskID %d created, exit\n", serviceInfo.GetServiceName(), taskID)
 
 	return nil
 }
 
 // AddToCloudTasksQ handles the Cloud Tasks-specifics to add to a queue
 func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandleRequest, handlerEndpoint string, requestJSON []byte) (taskID string, err error) {
-	log.Printf("%s.AddToCloudTasksQ entered, projectID: %q, locationID: %q, queueName: %q, serviceToHandleRequest: %q, handlerEndpoint: %q, requestJSON: %q\n",
-		serviceInfo.GetServiceName(), projectID, locationID, queueName, serviceToHandleRequest, handlerEndpoint, string(requestJSON))
+	// log.Printf("%s.queue.AddToCloudTasksQ entered, projectID: %q, locationID: %q, queueName: %q, serviceToHandleRequest: %q, handlerEndpoint: %q, requestJSON: %q\n",
+	// 	serviceInfo.GetServiceName(), projectID, locationID, queueName, serviceToHandleRequest, handlerEndpoint, string(requestJSON))
 
 	// Create a new Cloud Tasks client instance.
 	// See https://godoc.org/cloud.google.com/go/cloudtasks/apiv2
@@ -95,12 +93,9 @@ func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandle
 	i := strings.LastIndex(createdTask.Name, "/")
 	taskID = createdTask.Name[i+1:]
 
-	sn := serviceInfo.GetServiceName()
-	b := string(createdTask.GetAppEngineHttpRequest().GetBody())
-
 	// note whether the requestJSON passed to CreateTaskRequest became the Body of the created task
-	log.Printf("%s.queue.AddToCloudTasksQ, task %s created: %+v, on queuePath: %q, Body: %q, Body matches requestJSON: %t",
-		sn, taskID, createdTask, queuePath, b, string(requestJSON) == b)
+	// log.Printf("%s.queue.AddToCloudTasksQ, task %s created: %+v, on queuePath: %q\n",
+	// 	serviceInfo.GetServiceName(), taskID, createdTask, queuePath)
 
 	return taskID, nil
 }

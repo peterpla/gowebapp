@@ -78,14 +78,18 @@ func main() {
 
 // postHandler returns the handler func for POST /requests
 func postHandler(a adding.Service) httprouter.Handle {
+	var err error
+
 	sn := serviceInfo.GetServiceName()
 	// log.Printf("%s.main.postHandler - enter/exit", sn)
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		// log.Printf("%s.main.postHandler, enter\n", sn)
+		startTime := time.Now().UTC().Format(time.RFC3339Nano)
+
 		decoder := json.NewDecoder(r.Body)
 
 		var newRequest adding.Request
-		err := decoder.Decode(&newRequest)
+		err = decoder.Decode(&newRequest)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -97,9 +101,17 @@ func postHandler(a adding.Service) httprouter.Handle {
 
 		// set RequestID that uniquely identifies this request
 		newRequest.RequestID = uuid.New()
+		newRequest.AcceptedAt = time.Now().UTC().Format(time.RFC3339Nano)
+
+		// add timestamps and get duration
+		var duration time.Duration
+		if duration, err = newRequest.AddTimestamps("BeginDefault", startTime, "EndDefault"); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		// add the request (e.g., to a queue) for subsequent processing
-		newReq := a.AddRequest(newRequest)
+		returnedReq := a.AddRequest(newRequest)
 
 		w.WriteHeader(http.StatusAccepted)
 		w.Header().Set("Content-Type", "application/json")
@@ -108,25 +120,19 @@ func postHandler(a adding.Service) httprouter.Handle {
 		// selected fields of Request (which will have many more fields
 		// than we want to return here)
 		response := adding.PostResponse{
-			RequestID:    newReq.RequestID,
-			CustomerID:   newReq.CustomerID,
-			MediaFileURI: newReq.MediaFileURI,
-			AcceptedAt:   newReq.AcceptedAt.Format(time.RFC3339Nano),
+			RequestID:    returnedReq.RequestID,
+			CustomerID:   returnedReq.CustomerID,
+			MediaFileURI: returnedReq.MediaFileURI,
+			AcceptedAt:   returnedReq.AcceptedAt,
 		}
 
-		if err := json.NewEncoder(w).Encode(response); err != nil {
+		if err = json.NewEncoder(w).Encode(response); err != nil {
 			log.Printf("%s.postHandler, json.NewEncoder.Encode error: +%v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		// responseFormat := `{ "RequestID": %q, "CustomerID": %s, "MediaFileURI": %q, "AcceptedAt": %q, }`
-		// responseString := fmt.Sprintf(responseFormat,
-		// 	newReq.RequestID, newReq.CustomerID, newReq.MediaFileURI,
-		// 	newReq.AcceptedAt.Format(time.RFC3339Nano))
-		// _ = json.NewEncoder(w).Encode(responseString)
-
-		log.Printf("%s.postHandler, %+v\n", sn, response)
+		log.Printf("%s.postHandler, completed in %v, newRequest: %+v\n", sn, duration, newRequest)
 	}
 }
 

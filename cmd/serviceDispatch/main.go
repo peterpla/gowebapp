@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
@@ -88,9 +89,8 @@ func taskHandler(a adding.Service) httprouter.Handle {
 	serviceName := Config.ServiceName
 	// log.Printf("%s.taskHandler - enter/exit\n", serviceName)
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		// log.Printf("%s.taskHandler - enter handler\n", serviceName)
-		// log.Printf("... request: %+v\n", r)
-		// log.Printf("... params: %+v\n", p)
+		// log.Printf("%s.taskHandler, request: %+v, params: %+v\n", serviceName, r, p)
+		startTime := time.Now().UTC().Format(time.RFC3339Nano)
 
 		t, ok := r.Header["X-Appengine-Taskname"]
 		if !ok || len(t[0]) == 0 {
@@ -134,18 +134,25 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		// TODO: validation incoming request
 
 		newRequest := incomingRequest
+
+		// add timestamps and get duration
+		var duration time.Duration
+		if duration, err = newRequest.AddTimestamps("BeginServiceDispatch", startTime, "EndServiceDispatch"); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// add the request (e.g., to a queue) for subsequent processing
 		a.AddRequest(newRequest)
 
 		// Log & output details of the task.
-		output := fmt.Sprintf("%s.taskHandler completed: queue %q, task %q, payload: %+v",
-			serviceName, queueName, taskName, newRequest)
+		output := fmt.Sprintf("%s.taskHandler completed in %v: queue %q, task %q, newRequest: %+v",
+			serviceName, duration, queueName, taskName, newRequest)
 		log.Println(output)
 
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.
 		// For example, http.Error(w, "Internal Server Error: Task Processing", http.StatusInternalServerError)
 		w.WriteHeader(http.StatusOK)
-
-		// log.Printf("%s.taskHandler - exit hander\n", serviceName)
 	}
 }
 
