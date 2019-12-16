@@ -19,7 +19,9 @@ import (
 
 func TestCompletionProcessing(t *testing.T) {
 
-	servicePrefix := "completion-processing-dot-"
+	cfg := config.GetConfigPointer()
+	servicePrefix := "completion-processing-dot-" // <---- change to match service!!
+	port := cfg.TaskCompletionProcessingPort      // <---- change to match service!!
 
 	type test struct {
 		name     string
@@ -44,10 +46,6 @@ func TestCompletionProcessing(t *testing.T) {
 	storage := new(memory.Storage)
 	adder := adding.NewService(storage)
 
-	cfg := config.GetConfigPointer()
-	// port := cfg.TaskDefaultPort - should work but doesn't?
-	port := os.Getenv("TASK_COMPLETION_PROCESSING_PORT")
-
 	prefix := fmt.Sprintf("http://localhost:%s", port)
 	if cfg.IsGAE {
 		prefix = fmt.Sprintf("https://%s%s.appspot.com", servicePrefix, os.Getenv("PROJECT_ID"))
@@ -59,8 +57,6 @@ func TestCompletionProcessing(t *testing.T) {
 
 		router := httprouter.New()
 		router.POST("/task_handler", taskHandler(adder))
-
-		// TODO: set X-Appengine-Taskname header
 
 		// build the POST request with custom header
 		theRequest, err := http.NewRequest("POST", url, strings.NewReader(tc.body))
@@ -91,5 +87,4 @@ func TestCompletionProcessing(t *testing.T) {
 			}
 		}
 	}
-
 }

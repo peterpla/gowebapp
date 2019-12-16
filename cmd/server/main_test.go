@@ -1,10 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -17,6 +17,10 @@ import (
 )
 
 func TestDefaultPost(t *testing.T) {
+
+	cfg := config.GetConfigPointer()
+	servicePrefix := ""
+	port := cfg.TaskDefaultPort
 
 	type test struct {
 		name     string
@@ -67,11 +71,9 @@ func TestDefaultPost(t *testing.T) {
 
 	apiPrefix := "/api/v1"
 
-	cfg := config.GetConfigPointer()
-	port := cfg.TaskDefaultPort
 	prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
 	if cfg.IsGAE {
-		prefix = fmt.Sprintf("https://%s.appspot.com%s", os.Getenv("PROJECT_ID"), apiPrefix)
+		prefix = fmt.Sprintf("https://%s%s.appspot.com%s", servicePrefix, os.Getenv("PROJECT_ID"), apiPrefix)
 	}
 
 	for _, tc := range tests {
@@ -81,19 +83,25 @@ func TestDefaultPost(t *testing.T) {
 		router := httprouter.New()
 		router.POST("/api/v1/requests", postHandler(adder))
 
-		// POST it
-		resp, err := http.Post(url, "application/json", bytes.NewBufferString(tc.body))
+		// build the POST request with custom header
+		theRequest, err := http.NewRequest("POST", url, strings.NewReader(tc.body))
 		if err != nil {
-			t.Fatalf("%s: http.Post error: %v", tc.name, err)
+			t.Fatal(err)
 		}
 
-		if tc.status != resp.StatusCode {
-			t.Errorf("%s: %q expected status code %v, got %v", tc.name, tc.endpoint, tc.status, resp.StatusCode)
+		// response recorder
+		rr := httptest.NewRecorder()
+
+		// send the request
+		router.ServeHTTP(rr, theRequest)
+
+		if tc.status != rr.Code {
+			t.Errorf("%s: %q expected status code %v, got %v", tc.name, tc.endpoint, tc.status, rr.Code)
 		}
 
 		if tc.respBody != "" {
 			var b []byte
-			if b, err = ioutil.ReadAll(resp.Body); err != nil {
+			if b, err = ioutil.ReadAll(rr.Body); err != nil {
 				t.Fatalf("%s: ReadAll error: %v", tc.name, err)
 			}
 

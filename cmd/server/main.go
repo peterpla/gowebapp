@@ -117,9 +117,6 @@ func postHandler(a adding.Service) httprouter.Handle {
 		// add the request (e.g., to a queue) for subsequent processing
 		returnedReq := a.AddRequest(newRequest)
 
-		w.WriteHeader(http.StatusAccepted)
-		w.Header().Set("Content-Type", "application/json")
-
 		// provide selected fields of Request as the HTTP response
 		response := adding.PostResponse{
 			RequestID:    returnedReq.RequestID,
@@ -128,6 +125,9 @@ func postHandler(a adding.Service) httprouter.Handle {
 			AcceptedAt:   returnedReq.AcceptedAt,
 		}
 
+		// send response to client
+		w.WriteHeader(http.StatusAccepted)
+		w.Header().Set("Content-Type", "application/json")
 		if err = json.NewEncoder(w).Encode(response); err != nil {
 			log.Printf("%s.postHandler, json.NewEncoder.Encode error: +%v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
