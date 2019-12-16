@@ -12,21 +12,27 @@ TODO: authentication and authorization
 
 #### Inputs - POST /requests
 
+`Content-Type` must be `application/json`.
+
 Body, JSON: *(no key order is assumed or required)*
 
-* **"customer_id"** (required) - string
+**Note**: `cmd/server/main.go/decodeJSONBody()` sets `http.MaxBytesReader` to `1048576` (1 mebibyte, 1024^2). If we decide to allow attached media files, we'll need to change that.
 
-    Primary key for identifying this customer's profile.
+* **"customer_id"** (required) - integer
 
-* **"media_uri"** (required) - string
+    Positive non-zero integer, seven digits. E.g., `1234567`. Primary key for identifying this customer's profile. (Allows for *10 million-1* customers.)
+
+* **"media_uri"** (required) - string - [RFC3986](https://tools.ietf.org/html/rfc3986)
 
     URI to access the media file.
   
 TODO: each supported external services - e.g., Twilio and Dropbox - will need an adapter to use that service's APIs to read the file.
 
-* **"custom_config"** (optional) - boolean
+* **"custom_config"** (optional) - structure
 
-    Flag that indicates whether the request Body includes a `config` section that overrides the customer's profile setting for transcription processing.
+    **UNSUPPORTED** - future feature
+
+    When present, the request Body includes a `config` section that overrides the customer's profile setting for transcription processing.
 
 TODO: The customer's profile will provide many default values, e.g., destination for storing the final transcript, budgets for individual transcriptions and per-period costs (e.g., monthly maximum).
 
@@ -38,39 +44,39 @@ Example Request Body:
 
 ```json
 {
-  "customer_id":   "0123456",
+  "customer_id":   1234567,
   "media_uri": "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0"
 }
 ```
 
-**HACK!!!**: only Google Cloud Storage URIs in the form `gs://` are currently accepted, and the media file to be transcribed must already be present in the GCS bucket `elated-practice-224603.appspot.com/audio_uploads/`.
+**HACK!!!**: only Google Cloud Storage URIs in the form `gs://` are currently accepted, and the media file to be transcribed must already be present in a specific GCS bucket.
 
 #### Outputs - POST /requests
 
 Body, JSON: *(key order is random, no ordering)*
 
-* **"request_id"** (always) - string - RFC4112
+* **"request_id"** (always) - string - [RFC4112](https://tools.ietf.org/html/rfc4122) v4
 
-    UUID identifier of the Request, created by the server. [RFC4112](https://tools.ietf.org/html/rfc4122) version 4.
+    UUID identifier of the Request, created by the server.
 
-* **"customer_id"** (always) - string
+* **"customer_id"** (always) - integer
 
     From the request, unchanged
 
-* **"media_uri"** (always) - string
+* **"media_uri"** (always) - string - [RFC3986](https://tools.ietf.org/html/rfc3986)
 
     From the request, unchanged.
 
-* **"accepted_at"** (always) - string - RFC3339
+* **"accepted_at"** (always) - string - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt)
 
-    Date and time the Request was accepted (processing began), in [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
+    Date and time the Request was accepted (processing began), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
 
 Example Response Body:
 
 ```json
 {
   "request_id":   "269fd581-35aa-465d-81df-c0295034c723",
-  "customer_id":  "0123456",
+  "customer_id":  1234567,
   "media_uri":    "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0",
   "accepted_at":  "2019-12-14T16:36:47.60642Z",
 }

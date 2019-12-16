@@ -1,6 +1,8 @@
 package serviceInfo
 
-import "fmt"
+import (
+	"fmt"
+)
 
 var serviceName string
 var queueName string

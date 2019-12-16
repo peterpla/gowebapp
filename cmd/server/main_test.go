@@ -12,10 +12,11 @@ import (
 	"github.com/julienschmidt/httprouter"
 
 	"github.com/peterpla/lead-expert/pkg/adding"
+	"github.com/peterpla/lead-expert/pkg/config"
 	"github.com/peterpla/lead-expert/pkg/storage/memory"
 )
 
-func TestRequestsPost(t *testing.T) {
+func TestDefaultPost(t *testing.T) {
 
 	type test struct {
 		name     string
@@ -26,22 +27,52 @@ func TestRequestsPost(t *testing.T) {
 	}
 
 	tests := []test{
-		{name: "POST requests",
+		// valid
+		{name: "valid POST requests",
 			endpoint: "/requests",
-			body:     `{ "customer_id": "12345", "media_url": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-02.mp3", "custom_config": false }`,
+			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-02.mp3" }`,
 			respBody: "accepted_at",
 			status:   http.StatusAccepted},
+		// bad customer_id
+		{name: "string customer_id",
+			endpoint: "/requests",
+			body:     `{ "customer_id": "nope", "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-02.mp3" }`,
+			respBody: "invalid value for the \"customer_id\"",
+			status:   http.StatusBadRequest},
+		{name: "zero customer_id",
+			endpoint: "/requests",
+			body:     `{ "customer_id": 0, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-02.mp3" }`,
+			respBody: "Error:Field validation for 'CustomerID'",
+			status:   http.StatusBadRequest},
+		{name: "negative customer_id",
+			endpoint: "/requests",
+			body:     `{ "customer_id": -1, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-02.mp3" }`,
+			respBody: "Error:Field validation for 'CustomerID'",
+			status:   http.StatusBadRequest},
+		{name: "too big customer_id",
+			endpoint: "/requests",
+			body:     `{ "customer_id": 12345678, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-02.mp3" }`,
+			respBody: "Error:Field validation for 'CustomerID'",
+			status:   http.StatusBadRequest},
+		// bad media_uri
+		{name: "invalid media_uri",
+			endpoint: "/requests",
+			body:     `{ "customer_id": 1234567, "media_uri": "lollipop" }`,
+			respBody: "Error:Field validation for 'MediaFileURI'",
+			status:   http.StatusBadRequest},
 	}
 
 	storage := new(memory.Storage)
 	adder := adding.NewService(storage)
 
-	// port := os.Getenv("PORT") // needed for localhost testing, not for GAE
 	apiPrefix := "/api/v1"
 
-	// IMPORTANT: comment/uncomment to change where the app is running
-	// prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
-	prefix := fmt.Sprintf("https://%s.appspot.com%s", os.Getenv("PROJECT_ID"), apiPrefix)
+	cfg := config.GetConfigPointer()
+	port := cfg.TaskDefaultPort
+	prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
+	if cfg.IsGAE {
+		prefix = fmt.Sprintf("https://%s.appspot.com%s", os.Getenv("PROJECT_ID"), apiPrefix)
+	}
 
 	for _, tc := range tests {
 		url := prefix + tc.endpoint

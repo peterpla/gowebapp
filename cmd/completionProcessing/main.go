@@ -14,52 +14,45 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/peterpla/lead-expert/pkg/adding"
+	"github.com/peterpla/lead-expert/pkg/appengine"
 	"github.com/peterpla/lead-expert/pkg/config"
 	"github.com/peterpla/lead-expert/pkg/middleware"
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
-var Config config.Config
+var prefix = "TaskCompletionProcessing"
+var initLogPrefix = "completion-processing.main.init(),"
+var cfg config.Config
 
 func init() {
-	logPrefix := "completion-processing.main.init(),"
-	if err := config.GetConfig(&Config); err != nil {
-		msg := fmt.Sprintf(logPrefix+" GetConfig error: %v", err)
+	if err := config.GetConfig(&cfg); err != nil {
+		msg := fmt.Sprintf(initLogPrefix+" GetConfig error: %v", err)
 		panic(msg)
 	}
-	// log.Printf(logPrefix+" Config: %+v", Config)
+	// set ServiceName and QueueName appropriately
+	cfg.ServiceName = viper.GetString(prefix + "SvcName")
+	cfg.QueueName = viper.GetString(prefix + "WriteToQ")
+	cfg.NextServiceName = viper.GetString(prefix + "NextSvcToHandleReq")
+
+	// make ServiceName and QueueName available to other packages
+	serviceInfo.RegisterServiceName(cfg.ServiceName)
+	serviceInfo.RegisterQueueName(cfg.QueueName)
+	serviceInfo.RegisterNextServiceName(cfg.NextServiceName)
+
+	config.SetConfigPointer(&cfg)
 }
 
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
-	// log.Printf("Enter completion-processing.main, Config: %+v\n", Config)
-
-	// set ServiceName and QueueName appropriately
-	prefix := "TaskCompletionProcessing"
-	Config.ServiceName = viper.GetString(prefix + "SvcName")
-	Config.QueueName = viper.GetString(prefix + "WriteToQ")
-	Config.NextServiceName = viper.GetString(prefix + "NextSvcToHandleReq")
-
-	// make ServiceName and QueueName available to other packages
-	serviceInfo.RegisterServiceName(Config.ServiceName)
-	serviceInfo.RegisterQueueName(Config.QueueName)
-	serviceInfo.RegisterNextServiceName(Config.NextServiceName)
-	// log.Println(serviceInfo.DumpServiceInfo())
 
 	router := httprouter.New()
-	Config.Router = router
-
-	// Default endpoint Cloud Tasks sends to is /task_handler
-	router.POST("/task_handler", taskHandler(Config.Adder))
-
-	// custom NotFound handler
-	router.NotFound = http.HandlerFunc(myNotFound)
-
-	// Allow confirmation the task handling service is running.
+	router.POST("/task_handler", taskHandler(cfg.Adder)) // default endpoint Cloud Tasks POSTs to
 	router.GET("/", indexHandler)
+	router.NotFound = http.HandlerFunc(myNotFound)
+	cfg.Router = router
 
 	port := os.Getenv("PORT") // Google App Engine complains if "PORT" env var isn't checked
-	if !Config.IsGAE {
+	if !cfg.IsGAE {
 		port = viper.GetString(prefix + "Port")
 	}
 	if port == "" {
@@ -67,58 +60,29 @@ func main() {
 	}
 
 	log.Printf("Service %s listening on port %s, requests will be added to queue %s",
-		Config.ServiceName, port, Config.QueueName)
+		cfg.ServiceName, port, cfg.QueueName)
 	log.Fatal(http.ListenAndServe(":"+port, middleware.LogReqResp(router)))
 }
 
-// indexHandler responds to requests with "service running"
-func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	serviceName := Config.ServiceName
-	// log.Printf("Enter %s.indexHandler\n", serviceName)
-	if r.URL.Path != "/" {
-		// log.Printf("%s.indexHandler, r.URL.Path: %s, will respond NotFound\n", serviceName, r.URL.Path)
-		http.NotFound(w, r)
-		return
-	}
-	// indicate service is running
-	fmt.Fprintf(w, "%q service running\n", serviceName)
-}
-
-// taskHandler processes task requests.
+// handler for Cloud Tasks POSTs
 func taskHandler(a adding.Service) httprouter.Handle {
-	serviceName := Config.ServiceName
-	// log.Printf("%s.taskHandler - enter/exit\n", serviceName)
+	sn := cfg.ServiceName
 
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		// log.Printf("%s.taskHandler, request: %+v, params: %+v\n", serviceName, r, p)
+		// log.Printf("%s.taskHandler, request: %+v, params: %+v\n", sn, r, p)
 		startTime := time.Now().UTC()
 
-		// var taskName string
-		t, ok := r.Header["X-Appengine-Taskname"]
-		if !ok || len(t[0]) == 0 {
-			// You may use the presence of the X-Appengine-Taskname header to validate
-			// the request comes from Cloud Tasks.
-			log.Printf("%s Invalid Task: No X-Appengine-Taskname request header found\n", serviceName)
-			http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
-			return
-		}
-		taskName := t[0]
-
-		// Pull useful headers from Task request.
-		q, ok := r.Header["X-Appengine-Queuename"]
-		queueName := ""
-		if ok {
-			queueName = q[0]
-		}
+		// pull task and queue names from App Engine headers
+		taskName, queueName := appengine.getAppEngineInfo(w, r)
 
 		// Extract the request body for further task details.
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.Printf("%s.main, ReadAll error: %v", serviceName, err)
+			log.Printf("%s.main, ReadAll error: %v", sn, err)
 			http.Error(w, "Internal Error", http.StatusInternalServerError)
 			return
 		}
-		// log.Printf("%s.taskHandler, body: %+v\n", serviceName, string(body))
+		// log.Printf("%s.taskHandler, body: %+v\n", sn, string(body))
 
 		// decode incoming request
 		var incomingRequest adding.Request
@@ -126,13 +90,11 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		decoder := json.NewDecoder(bytes.NewReader(body))
 		err = decoder.Decode(&incomingRequest)
 		if err != nil {
-			log.Printf("%s.taskHandler, json.Decode error: %v", serviceName, err)
+			log.Printf("%s.taskHandler, json.Decode error: %v", sn, err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		// log.Printf("%s.taskHandler - decoded request: %+v\n", serviceName, incomingRequest)
-
-		// TODO: validation incoming request
+		// log.Printf("%s.taskHandler - decoded request: %+v\n", sn, incomingRequest)
 
 		// TODO: establish what constitutes "completion processing"
 
@@ -161,33 +123,39 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		}
 
 		if err := json.NewEncoder(w).Encode(response); err != nil {
-			log.Printf("%s.postHandler, json.NewEncoder.Encode error: +%v\n", serviceName, err)
+			log.Printf("%s.postHandler, json.NewEncoder.Encode error: +%v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		// total request processing time
-		var acceptedTime time.Time
-		if acceptedTime, err = time.Parse(time.RFC3339Nano, response.AcceptedAt); err != nil {
-			log.Printf("%s.taskHandler, ERROR: AcceptedAt %s does not parse (RFC3339Nano)\n", serviceName, response.AcceptedAt)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		requestTime := timeNow.Sub(acceptedTime)
+		// total request duration
+		requestDuration := incomingRequest.RequestDuration()
 
-		// get  duration
-		now := time.Now().UTC()
-		duration := now.Sub(startTime)
+		// service duration
+		serviceDuration := time.Now().UTC().Sub(startTime)
 
 		// Log & output completion status.
 		output := fmt.Sprintf("%s.taskHandler completed in %v =====> Request Processed in %v <==== : queue %q, task %q, response: %+v",
-			serviceName, duration, requestTime, queueName, taskName, response)
+			sn, serviceDuration, requestDuration, queueName, taskName, response)
 		log.Println(output)
 	}
 }
 
+// indexHandler serves as a health check, responding "service running"
+func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	sn := cfg.ServiceName
+	// log.Printf("Enter %s.indexHandler\n", sn)
+	if r.URL.Path != "/" {
+		// log.Printf("%s.indexHandler, r.URL.Path: %s, will respond NotFound\n", sn, r.URL.Path)
+		http.NotFound(w, r)
+		return
+	}
+	// indicate service is running
+	fmt.Fprintf(w, "%q service running\n", sn)
+}
+
 func myNotFound(w http.ResponseWriter, r *http.Request) {
-	// log.Printf("%s.myNotFound, request for %s not routed\n", serviceName, r.URL.Path)
+	// log.Printf("%s.myNotFound, request for %s not routed\n", sn, r.URL.Path)
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)

@@ -11,17 +11,17 @@ import (
 // ErrTimestampsKeyExists - key provided already exists
 var ErrTimestampsKeyExists = errors.New("Timestamps key exists")
 
-// ErrStartTimeInvalid - time provided does not parse
-var ErrStartTimeInvalid = errors.New("Start time invalid")
+// ErrInvalidTime - time provided does not parse
+var ErrInvalidTime = errors.New("Invalid time value cannot be parsed")
 
 // Request defines properties of an incoming transcription request
 // to be added
 type Request struct {
 	RequestID       uuid.UUID         `json:"request_id"`
-	CustomerID      string            `json:"customer_id"`
-	MediaFileURI    string            `json:"media_uri"`
-	CustomConfig    bool              `json:"custom_config"`
+	CustomerID      int               `json:"customer_id" validate:"required,gte=1,lt=10000000"`
+	MediaFileURI    string            `json:"media_uri" validate:"required,uri"`
 	AcceptedAt      string            `json:"accepted_at"`
+	CompletedAt     string            `json:"completed_at"`
 	RawTranscript   []RawResults      `json:"raw_transcript"`
 	FinalTranscript string            `json:"final_transcript"`
 	Timestamps      map[string]string `json:"timestamps"`
@@ -37,14 +37,14 @@ type RawResults struct {
 // HTTP response to initial POST request
 type PostResponse struct {
 	RequestID    uuid.UUID `json:"request_id"`
-	CustomerID   string    `json:"customer_id"`
+	CustomerID   int       `json:"customer_id"`
 	MediaFileURI string    `json:"media_uri"`
 	AcceptedAt   string    `json:"accepted_at"`
 }
 
 type CompletionResponse struct {
 	RequestID       uuid.UUID `json:"request_id"`
-	CustomerID      string    `json:"customer_id"`
+	CustomerID      int       `json:"customer_id" validate:"required,gte=1,lt=10000000"`
 	MediaFileURI    string    `json:"media_uri"`
 	AcceptedAt      string    `json:"accepted_at"`
 	FinalTranscript string    `json:"final_transcript"`
@@ -91,4 +91,14 @@ func (req *Request) AddTimestamps(startKey, startTimestamp, endKey string) (time
 	duration := now.Sub(startTime)
 
 	return duration, nil
+}
+
+func (req *Request) RequestDuration() time.Duration {
+	var accepted, completed time.Time
+
+	accepted, _ = time.Parse(time.RFC3339Nano, req.AcceptedAt)
+	completed, _ = time.Parse(time.RFC3339Nano, req.CompletedAt)
+
+	return completed.Sub(accepted)
+
 }

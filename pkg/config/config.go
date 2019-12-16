@@ -323,3 +323,13 @@ appname
 --help to display this usage info
 --v to enable verbose output
 `
+
+var configPointer *Config
+
+func SetConfigPointer(cfg *Config) {
+	configPointer = cfg
+}
+
+func GetConfigPointer() *Config {
+	return configPointer
+}
