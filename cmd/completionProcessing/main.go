@@ -73,7 +73,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		startTime := time.Now().UTC()
 
 		// pull task and queue names from App Engine headers
-		taskName, queueName := appengine.getAppEngineInfo(w, r)
+		taskName, queueName := appengine.GetAppEngineInfo(w, r)
 
 		// Extract the request body for further task details.
 		body, err := ioutil.ReadAll(r.Body)

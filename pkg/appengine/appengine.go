@@ -7,7 +7,7 @@ import (
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
-func getAppEngineInfo(w http.ResponseWriter, r *http.Request) (taskName, queueName string) {
+func GetAppEngineInfo(w http.ResponseWriter, r *http.Request) (taskName, queueName string) {
 	sn := serviceInfo.GetNextServiceName()
 	// var taskName string
 	t, ok := r.Header["X-Appengine-Taskname"]
