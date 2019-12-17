@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
 // ErrTimestampsKeyExists - key provided already exists
@@ -93,12 +95,22 @@ func (req *Request) AddTimestamps(startKey, startTimestamp, endKey string) (time
 	return duration, nil
 }
 
-func (req *Request) RequestDuration() time.Duration {
+func (req *Request) RequestDuration() (time.Duration, error) {
+	var badDuration time.Duration
 	var accepted, completed time.Time
+	var err error
 
-	accepted, _ = time.Parse(time.RFC3339Nano, req.AcceptedAt)
+	accepted, err = time.Parse(time.RFC3339Nano, req.AcceptedAt)
+	if err != nil {
+		log.Printf("%s.adding.RequestDuration, time.Parse error: %v from AcceptedAt: %v\n", serviceInfo.GetServiceName(), err, req.AcceptedAt)
+		return badDuration, err
+	}
 	completed, _ = time.Parse(time.RFC3339Nano, req.CompletedAt)
+	if err != nil {
+		log.Printf("%s.adding.RequestDuration, time.Parse error: %v from CompletedAt: %v\n", serviceInfo.GetServiceName(), err, req.CompletedAt)
+		return badDuration, err
+	}
 
-	return completed.Sub(accepted)
+	return completed.Sub(accepted), nil
 
 }
