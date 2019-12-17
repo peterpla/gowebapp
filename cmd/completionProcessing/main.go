@@ -112,13 +112,13 @@ func taskHandler(a adding.Service) httprouter.Handle {
 
 		// populate a CompletionResponse struct for the HTTP response, with
 		// selected fields of Request
-		var timeNow = time.Now().UTC()
+		incomingRequest.CompletedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		response := adding.CompletionResponse{
 			RequestID:       incomingRequest.RequestID,
 			CustomerID:      incomingRequest.CustomerID,
 			MediaFileURI:    incomingRequest.MediaFileURI,
 			AcceptedAt:      incomingRequest.AcceptedAt,
-			CompletedAt:     timeNow.Format(time.RFC3339Nano),
+			CompletedAt:     incomingRequest.CompletedAt,
 			FinalTranscript: incomingRequest.FinalTranscript,
 		}
 
@@ -128,16 +128,19 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			return
 		}
 
-		// total request duration
-		requestDuration := incomingRequest.RequestDuration()
-
 		// service duration
 		serviceDuration := time.Now().UTC().Sub(startTime)
 
-		// Log & output completion status.
-		output := fmt.Sprintf("%s.taskHandler completed in %v =====> Request Processed in %v <==== : queue %q, task %q, response: %+v",
+		// total request duration
+		requestDuration, err := incomingRequest.RequestDuration()
+		if err != nil {
+			log.Printf("%s.postHandler, error: %v\n", sn, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("%s.taskHandler completed in %v =====> Request Processed in %v <==== : queue %q, task %q, response: %+v",
 			sn, serviceDuration, requestDuration, queueName, taskName, response)
-		log.Println(output)
 	}
 }
 
