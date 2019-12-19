@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	speech "cloud.google.com/go/speech/apiv1"
@@ -18,6 +20,7 @@ import (
 
 	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/appengine"
+	"github.com/peterpla/lead-expert/pkg/check"
 	"github.com/peterpla/lead-expert/pkg/config"
 	"github.com/peterpla/lead-expert/pkg/middleware"
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
@@ -97,70 +100,31 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		// log.Printf("%s.taskHandler - decoded request: %+v\n", sn, incomingRequest)
-
-		// TODO: convert the media file if needed
-		//
-		// Overall flow:
-		//   1. extract file URI from Request (only files in GCS buckets supported at this point)
-		//   2. if needed, convert file to a supported format
-		// 	 3. submit file to Speech-to-Text service
-		//   4. update Request with the provided transcription(s)
-		//   5. add Request to next queue in the pipeline
-		//
-		//
-		// Libraries to investigate re: MP3 -> WAV
-		//  https://github.com/giorgisio/goav - Golang bindings for FFmpeg
-		//  https://www.ffmpeg.org/ffmpeg.html - ffmpeg is a very fast video and audio converter
-		//
-		//  https://github.com/nareix/joy4/cgo/ffmpeg - Golang audio/video library and streaming server
-		//  https://github.com/xfrr/goffmpeg - FFMPEG wrapper written in GO
-		//
-		//  https://github.com/go-audio/examples/blob/master/format-converter/main.go - Generic Go package designed to
-		//	define a common interface to analyze and/or process audio data
-		//
-		//	https://github.com/faiface/beep - A little package ... Suitable for playback and audio-processing.
-		//
-		// Potentially relevent write-ups:
-		//  "Scalable Video Transcoding With App Engine Flexible",
-		//	https://medium.com/google-cloud/scalable-video-transcoding-with-app-engine-flexible-621f6e7fdf56
-		//
-		//  "ffmpeg won't execute properly in google app engine standard nodejs",
-		//  https://stackoverflow.com/questions/57350148/ffmpeg-wont-execute-properly-in-google-app-engine-standard-nodejs
-
-		// TODO: copy file into GCS bucket
-
-		// !!! HACK !!! confirm audio file already in GCS bucket
-		if len(incomingRequest.MediaFileURI) < 5 {
-			log.Printf("%s.taskHandler, MediaFileURI too short: %q", sn, incomingRequest.MediaFileURI)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		var intro = incomingRequest.MediaFileURI[0:5]
-		if intro != "gs://" {
-			log.Printf("%s.taskHandler, only \"gs://\" URIs supported (temporary): %q", sn, incomingRequest.MediaFileURI)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		var resp *speechpb.LongRunningRecognizeResponse
-		if resp, err = submitGoogleSpeechToText(incomingRequest.MediaFileURI); err != nil {
-			http.Error(w, "Internal Error", http.StatusInternalServerError)
-			return
-		}
-
-		newRequest := incomingRequest
-
-		// save in the Request struct all alternative translations
-		for _, result := range resp.Results {
-			for _, alt := range result.Alternatives {
-				temp := new(adding.RawResults)
-				temp.Transcript = alt.Transcript
-				temp.Confidence = alt.Confidence
-				newRequest.RawTranscript = append(newRequest.RawTranscript, *temp)
+		if cfg.IsGAE {
+			// check for zero-value UUID, likely indicates failure to
+			// proogate the Request object
+			//
+			// guard with IsGAE because local execution currently
+			// does not propogate requests between services, so
+			// although cmd/server/main.go assigns a UUID, all
+			// subsequent services will see a zero-value UUID
+			if err := check.RequestID(incomingRequest); err != nil {
+				log.Printf("%s.main, check.RequestID error: %v", sn, err)
+				http.Error(w, "Internal Error", http.StatusInternalServerError)
+				return
 			}
 		}
-		// log.Printf("%s.taskHandler, request %s, ML transcription: %+v\n", sn, newRequest.RequestID, newRequest.RawTranscript)
+
+		// log.Printf("%s.taskHandler - decoded request: %+v\n", sn, incomingRequest)
+
+		var newRequest adding.Request
+
+		// submit transcription request
+		if newRequest, err = googleSpeechToText(incomingRequest); err != nil {
+			log.Printf("%s.taskHandler, googleSpeechToText error: %v", sn, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		// add timestamps and get duration
 		var duration time.Duration
@@ -182,48 +146,6 @@ func taskHandler(a adding.Service) httprouter.Handle {
 	}
 }
 
-func submitGoogleSpeechToText(gcsURI string) (*speechpb.LongRunningRecognizeResponse, error) {
-	// "Transcribing long audio files", https://cloud.google.com/speech-to-text/docs/async-recognize
-	sn := cfg.ServiceName
-
-	ctx := context.Background()
-	client, err := speech.NewClient(ctx)
-	if err != nil {
-		log.Printf("%s.taskHandler, speech.NewClient() error: %v", sn, err)
-		return nil, err
-	}
-
-	// Send the contents of the audio file with the encoding and
-	// and sample rate information to be transcripted.
-	// For MP3, DO NOT include Encoding or SampleRateHertz
-	req := &speechpb.LongRunningRecognizeRequest{
-		Config: &speechpb.RecognitionConfig{
-			LanguageCode: "en-US",
-			UseEnhanced:  true, // phone model requires enhanced service
-			Model:        "phone_call",
-			// Encoding:        speechpb.RecognitionConfig_LINEAR16,
-			// SampleRateHertz: 48000,
-		},
-		Audio: &speechpb.RecognitionAudio{
-			AudioSource: &speechpb.RecognitionAudio_Uri{Uri: gcsURI},
-		},
-	}
-
-	op, err := client.LongRunningRecognize(ctx, req)
-	if err != nil {
-		log.Printf("%s.submitGoogleSpeechToText, error from LongRunningRecognize(req: %+v), error: %v", sn, req, err)
-		return nil, err
-	}
-	resp, err := op.Wait(ctx)
-	if err != nil {
-		log.Printf("%s.submitGoogleSpeechToText, Wait() error: %v", sn, err)
-		return nil, err
-	}
-	// log.Printf("%s.submitGoogleSpeechToText, resp.Results: %+v", sn, resp.Results)
-
-	return resp, nil
-}
-
 // indexHandler responds to requests with "service running"
 func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	sn := cfg.ServiceName
@@ -243,4 +165,246 @@ func myNotFound(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
 	_, _ = w.Write(msg404)
+}
+
+// ********** ********** ********** ********** ********** **********
+
+// ErrBadMediaFileURI
+var ErrBadMediaFileURI = errors.New("Bad media_uri")
+
+func googleSpeechToText(req adding.Request) (adding.Request, error) {
+	var badRequest adding.Request
+	var err error
+
+	sn := serviceInfo.GetServiceName()
+	// log.Printf("%s.googleSpeechToText, request: %+v\n", sn, req)
+
+	// Overall flow:
+	//   1. extract file URI from Request (only files in GCS buckets supported at this point)
+	//   2. if needed, convert file to a supported format
+	// 	 3. submit file to Speech-to-Text service
+	//   4. update Request with the provided transcription(s)
+	//   5. add Request to next queue in the pipeline
+
+	// TODO: convert the media file if needed
+	//
+	// Libraries to investigate re: MP3 -> WAV
+	//  https://github.com/giorgisio/goav - Golang bindings for FFmpeg
+	//  https://www.ffmpeg.org/ffmpeg.html - ffmpeg is a very fast video and audio converter
+	//
+	//  https://github.com/nareix/joy4/cgo/ffmpeg - Golang audio/video library and streaming server
+	//  https://github.com/xfrr/goffmpeg - FFMPEG wrapper written in GO
+	//
+	//  https://github.com/go-audio/examples/blob/master/format-converter/main.go - Generic Go package designed to
+	//	define a common interface to analyze and/or process audio data
+	//
+	//	https://github.com/faiface/beep - A little package ... Suitable for playback and audio-processing.
+	//
+	// Potentially relevent write-ups:
+	//  "Scalable Video Transcoding With App Engine Flexible",
+	//	https://medium.com/google-cloud/scalable-video-transcoding-with-app-engine-flexible-621f6e7fdf56
+	//
+	//  "ffmpeg won't execute properly in google app engine standard nodejs",
+	//  https://stackoverflow.com/questions/57350148/ffmpeg-wont-execute-properly-in-google-app-engine-standard-nodejs
+
+	// TODO: copy file into GCS bucket
+
+	// !!! HACK !!! confirm audio file already in GCS bucket
+	if len(req.MediaFileURI) < 5 {
+		log.Printf("%s.taskHandler, MediaFileURI too short: %q", sn, req.MediaFileURI)
+		// http.Error(w, ErrBadMediaFileURI.Error(), http.StatusBadRequest)
+		return badRequest, ErrBadMediaFileURI
+	}
+	var intro = req.MediaFileURI[0:5]
+	if intro != "gs://" {
+		log.Printf("%s.taskHandler, only \"gs://\" URIs supported (temporary): %q", sn, req.MediaFileURI)
+		// http.Error(w, ErrBadMediaFileURI.Error(), http.StatusBadRequest)
+		return badRequest, ErrBadMediaFileURI
+	}
+
+	var ctx context.Context
+	var client *speech.Client
+	var gSTTreq *speechpb.LongRunningRecognizeRequest
+
+	ctx, client, gSTTreq, err = prepareGoogleSTT(req.MediaFileURI)
+	if err != nil {
+		log.Printf("%s.googleSpeechToText, prepareGoogleSTT error: %v", sn, err)
+		// http.Error(w, ErrBadMediaFileURI.Error(), http.StatusBadRequest)
+		return badRequest, ErrBadMediaFileURI
+	}
+
+	var resp *speechpb.LongRunningRecognizeResponse
+	// func getGoogleSTTResponse(ctx context.Context, client *speech.Client, req *speechpb.LongRunningRecognizeRequest) (*speechpb.LongRunningRecognizeResponse, error) {
+	if resp, err = getGoogleSTTResponse(ctx, client, gSTTreq); err != nil {
+		// http.Error(w, "Internal Error", http.StatusInternalServerError)
+		return badRequest, err
+	}
+
+	newRequest := processTranscriptionResponse(req, resp)
+
+	// log.Printf("%s.googleSpeechToText exiting, request %s, WorkingTranscript: %+v\n", sn, newRequest.RequestID, newRequest.WorkingTranscript)
+
+	return newRequest, nil
+}
+
+func prepareGoogleSTT(gcsURI string) (context.Context, *speech.Client, *speechpb.LongRunningRecognizeRequest, error) {
+	sn := serviceInfo.GetServiceName()
+	// log.Printf("%s.prepareGoogleSTT, URI: %s\n", sn, gcsURI)
+
+	ctx := context.Background()
+	client, err := speech.NewClient(ctx)
+	if err != nil {
+		log.Printf("%s.taskHandler, speech.NewClient() error: %v", sn, err)
+		return nil, nil, nil, err
+	}
+
+	// "By using the [classes] in your recognition config, Cloud
+	// Speech-to-Text is more likely to correctly transcribe audio
+	// that includes [those classes]""
+	phrases := []string{"$MONEY", "$MONTH", "$POSTALCODE", "$FULLPHONENUM"}
+	speechContext := speechpb.SpeechContext{Phrases: phrases}
+
+	// Send the contents of the audio file for transcription.
+	req := &speechpb.LongRunningRecognizeRequest{
+		Config: &speechpb.RecognitionConfig{
+			// for MP3, DO NOT include Encoding or SampleRateHertz
+			// Encoding:        speechpb.RecognitionConfig_LINEAR16,
+			// SampleRateHertz: 48000,
+			LanguageCode: "en-US",
+			UseEnhanced:  true, // phone model requires enhanced service
+			Model:        "phone_call",
+			// adds punctuation to recognition result
+			EnableAutomaticPunctuation: true,
+			// recognize different speakers and what they say
+			DiarizationConfig: &speechpb.SpeakerDiarizationConfig{
+				EnableSpeakerDiarization: true,
+			},
+			SpeechContexts: []*speechpb.SpeechContext{
+				&speechContext,
+			},
+		},
+		Audio: &speechpb.RecognitionAudio{
+			// where to find the audio file
+			AudioSource: &speechpb.RecognitionAudio_Uri{Uri: gcsURI},
+		},
+	}
+
+	return ctx, client, req, nil
+}
+
+func getGoogleSTTResponse(ctx context.Context, client *speech.Client, req *speechpb.LongRunningRecognizeRequest) (*speechpb.LongRunningRecognizeResponse, error) {
+	// "Transcribing long audio files", https://cloud.google.com/speech-to-text/docs/async-recognize
+	sn := serviceInfo.GetServiceName()
+
+	op, err := client.LongRunningRecognize(ctx, req)
+	if err != nil {
+		log.Printf("%s.submitgoogleSpeechToText, error from LongRunningRecognize(req: %+v), error: %v", sn, req, err)
+		return nil, err
+	}
+	resp, err := op.Wait(ctx)
+	if err != nil {
+		log.Printf("%s.submitgoogleSpeechToText, Wait() error: %v", sn, err)
+		return nil, err
+	}
+	// log.Printf("%s.submitgoogleSpeechToText, resp.Results: %+v", sn, resp.Results)
+
+	return resp, nil
+}
+
+func processTranscriptionResponse(req adding.Request, resp *speechpb.LongRunningRecognizeResponse) adding.Request {
+	// sn := serviceInfo.GetServiceName()
+	// log.Printf("%s.processTranscriptionResponse, request: %+v\n", sn, req)
+
+	// modify a copy of the incoming request
+	newRequest := req
+
+	// save Alternatives in the Request struct all alternative translations
+	for _, result := range resp.Results {
+		for _, alt := range result.Alternatives {
+			// log.Printf("%s.processTranscriptionResponse, resp.Results.Alternative: %+v\n", sn, alt)
+			tempResults := new(adding.RawResults)
+			tempResults.Transcript = alt.GetTranscript()
+			tempResults.Confidence = alt.GetConfidence()
+			newRequest.RawTranscript = append(newRequest.RawTranscript, *tempResults)
+
+			newRequest.RawWords = alt.GetWords()
+			newRequest.AttributedStrings = wordsToAttributedStrings(newRequest.RawWords)
+		}
+	}
+	// log.Printf("%s.processTranscriptionResponse, request %s after ML transcription: %+v\n", sn, newRequest.RequestID, newRequest)
+
+	persistAndTrim(&newRequest)
+
+	return newRequest
+}
+
+func wordsToAttributedStrings(rawWords []*speechpb.WordInfo) []string {
+	// sn := serviceInfo.GetServiceName()
+	// log.Printf("%s.wordsToAttributedStrings, rawWords: %+v\n", sn, rawWords)
+
+	// use | instead of \n to keep log entries cleaner
+	// completionProcessing replaces | with \n
+	const separator = "|"
+	strings := []string{}
+
+	var speaker = 1
+	var tmpString = "[Speaker 1]"
+	var wordCount int
+
+	for _, word := range rawWords {
+		tmpWord := word.GetWord()
+		tmpSpeaker := int(word.GetSpeakerTag())
+		// tmpConfidence = word.GetConfidence()
+		// tmpStart = word.GetStartTime()
+		// tmpEnd = word.GetEndTime()
+
+		if tmpSpeaker != speaker {
+			// changed speakers - end the current string
+			tmpString = tmpString + separator
+			strings = append(strings, tmpString)
+			// log.Printf("%s.transcriptionGCP.wordsToAttributedStrings, appended tmpString: %+v\n",
+			// 	sn, tmpString)
+
+			// reset tmpString, capture new speaker
+			tmpString = fmt.Sprintf("[Speaker %d]", tmpSpeaker)
+			speaker = tmpSpeaker
+		}
+
+		// policy: add space in front of the word we're adding (avoids
+		// trailing spaces)
+		tmpString = tmpString + " " + tmpWord
+		wordCount++
+	}
+
+	// end the final string, append it
+	tmpString = tmpString + "\n"
+	strings = append(strings, tmpString)
+	// log.Printf("%s.transcriptionGCP.wordsToAttributedStrings, appended tmpString: %q\n",
+	// 	sn, tmpString)
+
+	// log.Printf("%s.transcriptionGCP.wordsToAttributedStrings, returning %d words: %q\n",
+	// 	sn, wordCount, strings)
+
+	return strings
+}
+
+func persistAndTrim(req *adding.Request) {
+	sn := serviceInfo.GetServiceName()
+	// consolidate transcript into one string, WorkingTranscript
+	req.WorkingTranscript = strings.Join(req.AttributedStrings, "")
+
+	// TODO: persist fields that are about to be trimmed
+	log.Printf("%s.persistAndTrim, TODO: ==> persist <=== before deleting from Request: RawTranscript, RawWords, AttributedStrings\n", sn)
+
+	// trim (remove) fields in Request we no longer need
+	// var emptyRawTranscript = []adding.RawResults{}
+	// req.RawTranscript = emptyRawTranscript
+
+	var emptyRawWords = []*speechpb.WordInfo{}
+	req.RawWords = emptyRawWords
+
+	var emptyAttributedStrings = []string{}
+	req.AttributedStrings = emptyAttributedStrings
+
+	// log.Printf("%s.persistAndTrim exiting, req: %+v\n", sn, req)
 }

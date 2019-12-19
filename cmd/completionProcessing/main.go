@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -98,6 +99,9 @@ func taskHandler(a adding.Service) httprouter.Handle {
 
 		// TODO: establish what constitutes "completion processing"
 
+		// replace | with \n in WorkingTranscript
+		incomingRequest.FinalTranscript = strings.Replace(incomingRequest.WorkingTranscript, "|", "\n", -1)
+
 		// TODO: communicate status to the client.
 		// For detailed discussions of how to return status to the client upon completion of a long-running request, see:
 		// - "REST and long-running jobs", https://farazdagi.com/2014/rest-and-long-running-jobs/
@@ -119,7 +123,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			MediaFileURI:    incomingRequest.MediaFileURI,
 			AcceptedAt:      incomingRequest.AcceptedAt,
 			CompletedAt:     incomingRequest.CompletedAt,
-			FinalTranscript: incomingRequest.FinalTranscript,
+			FinalTranscript: incomingRequest.WorkingTranscript,
 		}
 
 		if err := json.NewEncoder(w).Encode(response); err != nil {
