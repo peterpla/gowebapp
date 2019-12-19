@@ -31,8 +31,8 @@ func TestTranscriptionGCP(t *testing.T) {
 		status   int
 	}
 
-	jsonBody := fmt.Sprintf("{ \"customer_id\": %7d, \"media_uri\": %q, \"accepted_at\": %q, \"tags\": 1 }",
-		1234567, "gs://elated-practice-224603.appspot.com/audio_uploads/audio-02.mp3", time.Now().UTC().Format(time.RFC3339Nano))
+	jsonBody := fmt.Sprintf("{ \"customer_id\": %7d, \"media_uri\": %q, \"accepted_at\": %q }",
+		1234567, "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3", time.Now().UTC().Format(time.RFC3339Nano))
 
 	tests := []test{
 		// valid

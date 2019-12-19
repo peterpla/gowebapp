@@ -240,7 +240,7 @@ func googleSpeechToText(req adding.Request) (adding.Request, error) {
 		return badRequest, err
 	}
 
-	newRequest := processTranscription(req, resp)
+	newRequest := processTranscriptionResponse(req, resp)
 
 	// log.Printf("%s.googleSpeechToText exiting, request %s, WorkingTranscript: %+v\n", sn, newRequest.RequestID, newRequest.WorkingTranscript)
 
@@ -258,6 +258,12 @@ func prepareGoogleSTT(gcsURI string) (context.Context, *speech.Client, *speechpb
 		return nil, nil, nil, err
 	}
 
+	// "By using the [classes] in your recognition config, Cloud
+	// Speech-to-Text is more likely to correctly transcribe audio
+	// that includes [those classes]""
+	phrases := []string{"$MONEY", "$MONTH", "$POSTALCODE", "$FULLPHONENUM"}
+	speechContext := speechpb.SpeechContext{Phrases: phrases}
+
 	// Send the contents of the audio file for transcription.
 	req := &speechpb.LongRunningRecognizeRequest{
 		Config: &speechpb.RecognitionConfig{
@@ -272,6 +278,9 @@ func prepareGoogleSTT(gcsURI string) (context.Context, *speech.Client, *speechpb
 			// recognize different speakers and what they say
 			DiarizationConfig: &speechpb.SpeakerDiarizationConfig{
 				EnableSpeakerDiarization: true,
+			},
+			SpeechContexts: []*speechpb.SpeechContext{
+				&speechContext,
 			},
 		},
 		Audio: &speechpb.RecognitionAudio{
@@ -302,9 +311,9 @@ func getGoogleSTTResponse(ctx context.Context, client *speech.Client, req *speec
 	return resp, nil
 }
 
-func processTranscription(req adding.Request, resp *speechpb.LongRunningRecognizeResponse) adding.Request {
+func processTranscriptionResponse(req adding.Request, resp *speechpb.LongRunningRecognizeResponse) adding.Request {
 	// sn := serviceInfo.GetServiceName()
-	// log.Printf("%s.processTranscription, request: %+v\n", sn, req)
+	// log.Printf("%s.processTranscriptionResponse, request: %+v\n", sn, req)
 
 	// modify a copy of the incoming request
 	newRequest := req
@@ -312,7 +321,7 @@ func processTranscription(req adding.Request, resp *speechpb.LongRunningRecogniz
 	// save Alternatives in the Request struct all alternative translations
 	for _, result := range resp.Results {
 		for _, alt := range result.Alternatives {
-			// log.Printf("%s.processTranscription, resp.Results.Alternative: %+v\n", sn, alt)
+			// log.Printf("%s.processTranscriptionResponse, resp.Results.Alternative: %+v\n", sn, alt)
 			tempResults := new(adding.RawResults)
 			tempResults.Transcript = alt.GetTranscript()
 			tempResults.Confidence = alt.GetConfidence()
@@ -322,7 +331,7 @@ func processTranscription(req adding.Request, resp *speechpb.LongRunningRecogniz
 			newRequest.AttributedStrings = wordsToAttributedStrings(newRequest.RawWords)
 		}
 	}
-	// log.Printf("%s.processTranscription, request %s after ML transcription: %+v\n", sn, newRequest.RequestID, newRequest)
+	// log.Printf("%s.processTranscriptionResponse, request %s after ML transcription: %+v\n", sn, newRequest.RequestID, newRequest)
 
 	persistAndTrim(&newRequest)
 
@@ -388,8 +397,8 @@ func persistAndTrim(req *adding.Request) {
 	log.Printf("%s.persistAndTrim, TODO: ==> persist <=== before deleting from Request: RawTranscript, RawWords, AttributedStrings\n", sn)
 
 	// trim (remove) fields in Request we no longer need
-	var emptyRawTranscript = []adding.RawResults{}
-	req.RawTranscript = emptyRawTranscript
+	// var emptyRawTranscript = []adding.RawResults{}
+	// req.RawTranscript = emptyRawTranscript
 
 	var emptyRawWords = []*speechpb.WordInfo{}
 	req.RawWords = emptyRawWords
