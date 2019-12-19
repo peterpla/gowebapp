@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	speechpb "google.golang.org/genproto/googleapis/cloud/speech/v1"
 
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
@@ -19,20 +20,34 @@ var ErrInvalidTime = errors.New("Invalid time value cannot be parsed")
 // Request defines properties of an incoming transcription request
 // to be added
 type Request struct {
-	RequestID       uuid.UUID         `json:"request_id"`
-	CustomerID      int               `json:"customer_id" validate:"required,gte=1,lt=10000000"`
-	MediaFileURI    string            `json:"media_uri" validate:"required,uri"`
-	AcceptedAt      string            `json:"accepted_at"`
-	CompletedAt     string            `json:"completed_at"`
-	RawTranscript   []RawResults      `json:"raw_transcript"`
-	FinalTranscript string            `json:"final_transcript"`
-	Timestamps      map[string]string `json:"timestamps"`
+	RequestID         uuid.UUID            `json:"request_id"`
+	CustomerID        int                  `json:"customer_id" validate:"required,gte=1,lt=10000000"`
+	MediaFileURI      string               `json:"media_uri" validate:"required,uri"`
+	AcceptedAt        string               `json:"accepted_at"`
+	CompletedAt       string               `json:"completed_at"`
+	RawTranscript     []RawResults         `json:"raw_transcript"`
+	RawWords          []*speechpb.WordInfo `json:"raw_words"`
+	AttributedStrings []string             `json:"attr_strings"`
+	WorkingTranscript string               `json:"working_transcript"`
+	FinalTranscript   string               `json:"final_transcript"`
+	Timestamps        map[string]string    `json:"timestamps"`
 }
+
+type Words struct {
+	Word       string
+	Speaker    int
+	Confidence float32
+	Start      time.Duration
+	End        time.Duration
+}
+
+const WordsMakeLength = 128 // recommended size for make([]*Words, WordsMakeLength)
 
 // RawResults holds the raw results from ML transcription
 type RawResults struct {
 	Transcript string
 	Confidence float32
+	Words      []*Words
 }
 
 // PostResponse holds seelcted fields of Result struct to include in

@@ -96,16 +96,13 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		}
 		// log.Printf("%s.taskHandler - decoded request: %+v\n", sn, incomingRequest)
 
+		newRequest := incomingRequest
+
 		// TODO: implement transcript QA complete processing
-		// E.g., accept the highest-confidence, QA'd transcript
 		//
 		// The current default selection is TBD
 		// so TaskTranscriptQACompleteWriteToQ and TaskTrancriptQACompleteNextSvcToHandleReq
 		// reflect "tagging" as the next stage in the pipeline.
-
-		// !!! HACK !!! - accept the first transcript alternative as FinalTranscript
-		newRequest := incomingRequest
-		newRequest.FinalTranscript = incomingRequest.RawTranscript[0].Transcript
 
 		// add timestamps and get duration
 		var duration time.Duration
