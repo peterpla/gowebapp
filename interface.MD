@@ -275,7 +275,11 @@ Body, JSON: *(key order is random, no ordering)*
 
 * **"request_id"** (always) - string - [RFC4112](https://tools.ietf.org/html/rfc4122) v4
 
-  UUID identifier of *this* Request, created by the server. No need for the client to retain this.
+  UUID identifier of *this* Request, created by the server.
+
+* **"completed_id"** (always) - string - [RFC4112](https://tools.ietf.org/html/rfc4122) v4
+
+  UUID identifier of *the original* Request, created by the server.
 
 * **"customer_id"** (always) - integer
 
@@ -302,6 +306,7 @@ Example Response Body:
 ```json
 {
   "request_id":  "269fd581-35aa-465d-81df-c0295034c723",
+  "completed_id":  "da4ae569-484d-4f59-bc52-c876058252d8",
   "customer_id": 1234567,
   "media_uri":   "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0",
   "accepted_at": "2019-12-14T16:36:47.60642Z",

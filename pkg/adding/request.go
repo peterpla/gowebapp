@@ -30,6 +30,7 @@ type Request struct {
 	RequestID         uuid.UUID         `json:"request_id"`
 	CustomerID        int               `json:"customer_id" validate:"required,gte=1,lt=10000000"`
 	MediaFileURI      string            `json:"media_uri" validate:"required,uri"`
+	Status            string            `json:"status"` // one of "PENDING", "ERROR", "COMPLETED"
 	AcceptedAt        string            `json:"accepted_at"`
 	CompletedAt       string            `json:"completed_at"`
 	WorkingTranscript string            `json:"working_transcript"`
@@ -170,6 +171,7 @@ type GetTranscriptResponse struct {
 	MediaFileURI string    `json:"media_uri"`
 	AcceptedAt   string    `json:"accepted_at"`
 	CompletedAt  string    `json:"completed_at"`
+	CompletedID  uuid.UUID `json:"completed_id"`
 	Transcript   string    `json:"transcript"`
 }
 

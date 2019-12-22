@@ -94,6 +94,8 @@ func postHandler(a adding.Service) httprouter.Handle {
 		// add the request (e.g., to a queue) for subsequent processing
 		returnedReq := a.AddRequest(newRequest)
 
+		// TODO: add "location", endpoint to query for status of this request
+
 		// provide selected fields of Request as the HTTP response
 		response := adding.PostResponse{
 			RequestID:    returnedReq.RequestID,
@@ -129,18 +131,18 @@ func getQueueHandler(a adding.Service) httprouter.Handle {
 		// log.Printf("%s.getQueueHandler, enter\n", sn)
 
 		var err error
-		var newRequest adding.Request
-		if err = newRequest.ReadRequest(w, r, p, validate); err != nil {
+		reqForStatus := adding.Request{}
+		if err = reqForStatus.ReadRequest(w, r, p, validate); err != nil {
 			log.Printf("%s.getQueueHandler, err: %v\n", sn, err)
 			// readRequest calls http.Error() on error
 			return
 		}
-		newRequest.RequestID = uuid.New()
-		newRequest.AcceptedAt = time.Now().UTC().Format(time.RFC3339Nano)
+		reqForStatus.RequestID = uuid.New()
+		reqForStatus.AcceptedAt = time.Now().UTC().Format(time.RFC3339Nano)
 
-		var whichRequestUUID uuid.UUID
-		whichRequest := p.ByName("uuid")
-		if whichRequestUUID, err = uuid.Parse(whichRequest); err != nil {
+		var requestedUUID uuid.UUID
+		paramUUID := p.ByName("uuid")
+		if requestedUUID, err = uuid.Parse(paramUUID); err != nil {
 			log.Printf("%s.getQueueHandler, bad UUID err: %v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -149,31 +151,43 @@ func getQueueHandler(a adding.Service) httprouter.Handle {
 		// !!! HACK !!! - fake a response, since we don't have the database running
 		acceptedAt := startTime.Add(time.Second * -1)
 		log.Printf("%s.getQueueHandler, =====> PLACEHOLDER <===== query database for status of %s\n",
-			sn, whichRequest)
+			sn, requestedUUID)
 
 		// !!! HACK !!! - should get this from database
 		statusOfReq := adding.Request{
-			RequestID:    whichRequestUUID,
-			CustomerID:   newRequest.CustomerID,
-			MediaFileURI: newRequest.MediaFileURI,
+			RequestID:    requestedUUID,
+			CustomerID:   reqForStatus.CustomerID,
+			MediaFileURI: reqForStatus.MediaFileURI,
+			Status:       "PENDING",
 			AcceptedAt:   acceptedAt.Format(time.RFC3339Nano),
 		}
 
 		// add timestamps and get duration
 		var duration time.Duration
-		if duration, err = newRequest.AddTimestamps("BeginDefault", startTime.Format(time.RFC3339Nano), "EndDefault"); err != nil {
+		if duration, err = reqForStatus.AddTimestamps("BeginDefault", startTime.Format(time.RFC3339Nano), "EndDefault"); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		// provide selected fields of Request as the HTTP response
 		response := adding.GetQueueResponse{
-			RequestID:        newRequest.RequestID,
+			RequestID:        reqForStatus.RequestID,
 			CustomerID:       statusOfReq.CustomerID,
 			MediaFileURI:     statusOfReq.MediaFileURI,
 			AcceptedAt:       statusOfReq.AcceptedAt,
-			StatusForRequest: whichRequestUUID,
-			StatusOfRequest:  "PENDING",
+			StatusForRequest: requestedUUID,
+			StatusOfRequest:  statusOfReq.Status,
+		}
+
+		switch statusOfReq.Status {
+		case "ERROR":
+			// TODO: provide StatusOfRequest value, update GetQueueResponse with original_status, omit-if-empty
+		case "PENDING":
+			// TODO: provide "eta" value, update GetQueueResponse with eta, omit-if-empty
+		case "COMPLETED":
+			// TODO: provide "location" value, update GetQueueResponse with location, omit-if-empty
+		default:
+			// TODO: handle invalid Status case
 		}
 
 		// send response to client
@@ -203,35 +217,36 @@ func getTranscriptHandler(a adding.Service) httprouter.Handle {
 		// log.Printf("%s.getTranscriptHandler, enter\n", sn)
 
 		var err error
-		var newRequest adding.Request
-		if err = newRequest.ReadRequest(w, r, p, validate); err != nil {
+		reqForTranscript := adding.Request{}
+		if err = reqForTranscript.ReadRequest(w, r, p, validate); err != nil {
 			log.Printf("%s.getTranscriptHandler, err: %v\n", sn, err)
 			// readRequest calls http.Error() on error
 			return
 		}
-		newRequest.RequestID = uuid.New()
-		newRequest.AcceptedAt = time.Now().UTC().Format(time.RFC3339Nano)
+		reqForTranscript.RequestID = uuid.New()
+		reqForTranscript.AcceptedAt = time.Now().UTC().Format(time.RFC3339Nano)
 
-		var whichRequestUUID uuid.UUID
-		whichRequest := p.ByName("uuid")
-		if whichRequestUUID, err = uuid.Parse(whichRequest); err != nil {
+		var requestedUUID uuid.UUID
+		paramUUID := p.ByName("uuid")
+		if requestedUUID, err = uuid.Parse(paramUUID); err != nil {
 			log.Printf("%s.getTranscriptHandler, bad UUID err: %v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		// !!! HACK !!! - fake a response, since we don't have the database running
+		// !!! HACK !!! - fake a response, since we don't have the database running - !!! HACK !!!
 		acceptedAt := startTime.Add(time.Second * -47)
 		completedAt := startTime.Add(time.Second * -2)
 		completedAt = completedAt.Add(time.Millisecond * -37521)
 		log.Printf("%s.getTranscriptHandler, =====> PLACEHOLDER <===== query database for status of %s\n",
-			sn, whichRequest)
+			sn, requestedUUID)
 
-		// !!! HACK !!! - should get this from database
-		statusOfReq := adding.Request{
-			RequestID:       whichRequestUUID,
-			CustomerID:      newRequest.CustomerID,
-			MediaFileURI:    newRequest.MediaFileURI,
+		// !!! HACK !!! - should get this from database - !!! HACK !!!
+		completedRequest := adding.Request{
+			RequestID:       requestedUUID,
+			CustomerID:      reqForTranscript.CustomerID,
+			MediaFileURI:    reqForTranscript.MediaFileURI,
+			Status:          "COMPLETED",
 			AcceptedAt:      acceptedAt.Format(time.RFC3339Nano),
 			CompletedAt:     completedAt.Format(time.RFC3339Nano),
 			FinalTranscript: "[Speaker 1] Thank you for calling Park flooring.\n[Speaker 2] Hi, my name is Yuri.\n",
@@ -239,19 +254,20 @@ func getTranscriptHandler(a adding.Service) httprouter.Handle {
 
 		// add timestamps and get duration
 		var duration time.Duration
-		if duration, err = newRequest.AddTimestamps("BeginDefault", startTime.Format(time.RFC3339Nano), "EndDefault"); err != nil {
+		if duration, err = reqForTranscript.AddTimestamps("BeginDefault", startTime.Format(time.RFC3339Nano), "EndDefault"); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		// provide selected fields of Request as the HTTP response
 		response := adding.GetTranscriptResponse{
-			RequestID:    newRequest.RequestID,
-			CustomerID:   statusOfReq.CustomerID,
-			MediaFileURI: statusOfReq.MediaFileURI,
-			AcceptedAt:   statusOfReq.AcceptedAt,
-			CompletedAt:  statusOfReq.CompletedAt,
-			Transcript:   statusOfReq.FinalTranscript,
+			RequestID:    reqForTranscript.RequestID, // this request for transcript
+			CustomerID:   completedRequest.CustomerID,
+			MediaFileURI: completedRequest.MediaFileURI,
+			AcceptedAt:   completedRequest.AcceptedAt,
+			CompletedAt:  completedRequest.CompletedAt,
+			CompletedID:  completedRequest.RequestID, // the request that produced the transcript
+			Transcript:   completedRequest.FinalTranscript,
 		}
 
 		// send response to client
