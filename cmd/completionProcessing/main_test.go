@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-playground/validator"
 	"github.com/julienschmidt/httprouter"
 
 	"github.com/peterpla/lead-expert/pkg/adding"
@@ -22,6 +23,8 @@ func TestCompletionProcessing(t *testing.T) {
 	cfg := config.GetConfigPointer()
 	servicePrefix := "completion-processing-dot-" // <---- change to match service!!
 	port := cfg.TaskCompletionProcessingPort      // <---- change to match service!!
+
+	validate = validator.New()
 
 	type test struct {
 		name     string

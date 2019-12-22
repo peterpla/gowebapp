@@ -1,12 +1,19 @@
 package adding
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"strings"
 	"time"
 
+	"github.com/go-playground/validator"
+	"github.com/golang/gddo/httputil/header"
 	"github.com/google/uuid"
-	speechpb "google.golang.org/genproto/googleapis/cloud/speech/v1"
+	"github.com/julienschmidt/httprouter"
 
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
@@ -20,35 +27,122 @@ var ErrInvalidTime = errors.New("Invalid time value cannot be parsed")
 // Request defines properties of an incoming transcription request
 // to be added
 type Request struct {
-	RequestID         uuid.UUID            `json:"request_id"`
-	CustomerID        int                  `json:"customer_id" validate:"required,gte=1,lt=10000000"`
-	MediaFileURI      string               `json:"media_uri" validate:"required,uri"`
-	AcceptedAt        string               `json:"accepted_at"`
-	CompletedAt       string               `json:"completed_at"`
-	RawTranscript     []RawResults         `json:"raw_transcript"`
-	RawWords          []*speechpb.WordInfo `json:"raw_words"`
-	AttributedStrings []string             `json:"attr_strings"`
-	WorkingTranscript string               `json:"working_transcript"`
-	FinalTranscript   string               `json:"final_transcript"`
-	Timestamps        map[string]string    `json:"timestamps"`
+	RequestID         uuid.UUID         `json:"request_id"`
+	CustomerID        int               `json:"customer_id" validate:"required,gte=1,lt=10000000"`
+	MediaFileURI      string            `json:"media_uri" validate:"required,uri"`
+	AcceptedAt        string            `json:"accepted_at"`
+	CompletedAt       string            `json:"completed_at"`
+	WorkingTranscript string            `json:"working_transcript"`
+	FinalTranscript   string            `json:"final_transcript"`
+	Timestamps        map[string]string `json:"timestamps"`
 }
 
-type Words struct {
-	Word       string
-	Speaker    int
-	Confidence float32
-	Start      time.Duration
-	End        time.Duration
+func (req *Request) ReadRequest(w http.ResponseWriter, r *http.Request, p httprouter.Params, validate *validator.Validate) error {
+	sn := serviceInfo.GetServiceName()
+
+	var err error
+
+	err = decodeJSONBody(w, r, req)
+
+	if err != nil {
+		var mr *malformedRequest
+		if errors.As(err, &mr) {
+			http.Error(w, mr.msg, mr.status)
+		} else {
+			log.Println("%s.adding.ReadRequest, " + err.Error())
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
+		return err
+	}
+
+	// log.Printf("%s.readRequest - decoded request: %+v\n", sn, newRequest)
+
+	// validate incoming request
+	// See https://github.com/go-playground/validator/blob/master/doc.go
+	err = validate.Struct(req)
+	if err != nil {
+		log.Printf("%s.adding.ReadRequest, validation error: %v\n", sn, err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return err
+	}
+	// log.Printf("%s.adding.ReadRequest - validated request: %+v\n", sn, newRequest)
+
+	return nil
 }
 
-const WordsMakeLength = 128 // recommended size for make([]*Words, WordsMakeLength)
+// ********** ********** ********** ********** ********** **********
 
-// RawResults holds the raw results from ML transcription
-type RawResults struct {
-	Transcript string
-	Confidence float32
-	Words      []*Words
+// Alex Edwards, "How to Parse a JSON Request Body in Go"
+// https://www.alexedwards.net/blog/how-to-properly-parse-a-json-request-body
+
+type malformedRequest struct {
+	status int
+	msg    string
 }
+
+func (mr *malformedRequest) Error() string {
+	return mr.msg
+}
+
+func decodeJSONBody(w http.ResponseWriter, r *http.Request, dst interface{}) error {
+	if r.Header.Get("Content-Type") != "" {
+		value, _ := header.ParseValueAndParams(r.Header, "Content-Type")
+		if value != "application/json" {
+			msg := "Content-Type header is not application/json"
+			return &malformedRequest{status: http.StatusUnsupportedMediaType, msg: msg}
+		}
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
+
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+
+	err := dec.Decode(&dst)
+	if err != nil {
+		var syntaxError *json.SyntaxError
+		var unmarshalTypeError *json.UnmarshalTypeError
+
+		switch {
+		case errors.As(err, &syntaxError):
+			msg := fmt.Sprintf("Request body contains badly-formed JSON (at position %d)", syntaxError.Offset)
+			return &malformedRequest{status: http.StatusBadRequest, msg: msg}
+
+		case errors.Is(err, io.ErrUnexpectedEOF):
+			msg := fmt.Sprintf("Request body contains badly-formed JSON")
+			return &malformedRequest{status: http.StatusBadRequest, msg: msg}
+
+		case errors.As(err, &unmarshalTypeError):
+			msg := fmt.Sprintf("Request body contains an invalid value for the %q field (at position %d)", unmarshalTypeError.Field, unmarshalTypeError.Offset)
+			return &malformedRequest{status: http.StatusBadRequest, msg: msg}
+
+		case strings.HasPrefix(err.Error(), "json: unknown field "):
+			fieldName := strings.TrimPrefix(err.Error(), "json: unknown field ")
+			msg := fmt.Sprintf("Request body contains unknown field %s", fieldName)
+			return &malformedRequest{status: http.StatusBadRequest, msg: msg}
+
+		case errors.Is(err, io.EOF):
+			msg := "Request body must not be empty"
+			return &malformedRequest{status: http.StatusBadRequest, msg: msg}
+
+		case err.Error() == "http: request body too large":
+			msg := "Request body must not be larger than 1MB"
+			return &malformedRequest{status: http.StatusRequestEntityTooLarge, msg: msg}
+
+		default:
+			return err
+		}
+	}
+
+	if dec.More() {
+		msg := "Request body must only contain a single JSON object"
+		return &malformedRequest{status: http.StatusBadRequest, msg: msg}
+	}
+
+	return nil
+}
+
+// ********** ********** ********** ********** ********** **********
 
 // PostResponse holds seelcted fields of Result struct to include in
 // HTTP response to initial POST request
@@ -59,13 +153,24 @@ type PostResponse struct {
 	AcceptedAt   string    `json:"accepted_at"`
 }
 
-type CompletionResponse struct {
-	RequestID       uuid.UUID `json:"request_id"`
-	CustomerID      int       `json:"customer_id" validate:"required,gte=1,lt=10000000"`
-	MediaFileURI    string    `json:"media_uri"`
-	AcceptedAt      string    `json:"accepted_at"`
-	FinalTranscript string    `json:"final_transcript"`
-	CompletedAt     string    `json:"completed_at"`
+// GetQueueResponse holds seelcted fields of Result struct to include in
+// HTTP response to GET /queue/{uuid} request
+type GetQueueResponse struct {
+	RequestID        uuid.UUID `json:"request_id"`
+	CustomerID       int       `json:"customer_id"`
+	MediaFileURI     string    `json:"media_uri"`
+	AcceptedAt       string    `json:"accepted_at"`
+	StatusForRequest uuid.UUID `json:"status_for_req"`
+	StatusOfRequest  string    `json:"status_of_req"`
+}
+
+type GetTranscriptResponse struct {
+	RequestID    uuid.UUID `json:"request_id"`
+	CustomerID   int       `json:"customer_id" validate:"required,gte=1,lt=10000000"`
+	MediaFileURI string    `json:"media_uri"`
+	AcceptedAt   string    `json:"accepted_at"`
+	CompletedAt  string    `json:"completed_at"`
+	Transcript   string    `json:"transcript"`
 }
 
 func (req *Request) AddTimestamps(startKey, startTimestamp, endKey string) (time.Duration, error) {

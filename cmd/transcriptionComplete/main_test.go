@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,7 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-playground/validator"
 	"github.com/julienschmidt/httprouter"
+
 	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/config"
 	"github.com/peterpla/lead-expert/pkg/storage/memory"
@@ -22,6 +25,8 @@ func TestTranscriptionComplete(t *testing.T) {
 	servicePrefix := "transcription-complete-dot-" // <---- change to match service!!
 	port := cfg.TaskTranscriptionCompletePort      // <---- change to match service!!
 
+	validate = validator.New()
+
 	type test struct {
 		name     string
 		endpoint string
@@ -30,7 +35,7 @@ func TestTranscriptionComplete(t *testing.T) {
 		status   int
 	}
 
-	jsonBody := fmt.Sprintf("{ \"customer_id\": %7d, \"media_uri\": %q, \"accepted_at\": %q, \"tags\": 1 }",
+	jsonBody := fmt.Sprintf("{ \"customer_id\": %7d, \"media_uri\": %q, \"accepted_at\": %q }",
 		1234567, "gs://elated-practice-224603.appspot.com/audio_uploads/audio-02.mp3", time.Now().UTC().Format(time.RFC3339Nano))
 
 	tests := []test{
@@ -79,6 +84,7 @@ func TestTranscriptionComplete(t *testing.T) {
 			if b, err = ioutil.ReadAll(rr.Body); err != nil {
 				t.Fatalf("%s: ReadAll error: %v", tc.name, err)
 			}
+			log.Printf("%s: rr.Body: %q\n", tc.name, string(b))
 			t.Errorf("%s: expected blank body, got %q", tc.name, string(b))
 		}
 	}

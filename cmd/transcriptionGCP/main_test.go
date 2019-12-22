@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-playground/validator"
 	"github.com/julienschmidt/httprouter"
 
 	"github.com/peterpla/lead-expert/pkg/adding"
@@ -23,6 +24,8 @@ func TestTranscriptionGCP(t *testing.T) {
 	servicePrefix := "transcription-gcp-dot-" // <---- change to match service!!
 	port := cfg.TaskTranscriptionGCPPort      // <---- change to match service!!
 
+	validate = validator.New()
+
 	type test struct {
 		name     string
 		endpoint string
@@ -31,15 +34,22 @@ func TestTranscriptionGCP(t *testing.T) {
 		status   int
 	}
 
-	jsonBody := fmt.Sprintf("{ \"customer_id\": %7d, \"media_uri\": %q, \"accepted_at\": %q }",
+	goodJSONBody := fmt.Sprintf("{ \"customer_id\": %7d, \"media_uri\": %q, \"accepted_at\": %q }",
 		1234567, "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3", time.Now().UTC().Format(time.RFC3339Nano))
+	badExtJSONBody := fmt.Sprintf("{ \"customer_id\": %7d, \"media_uri\": %q, \"accepted_at\": %q }",
+		1234567, "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.wav", time.Now().UTC().Format(time.RFC3339Nano))
 
 	tests := []test{
 		// valid
 		{name: "valid POST /task_handler",
 			endpoint: "/task_handler",
-			body:     jsonBody,
+			body:     goodJSONBody,
 			status:   http.StatusOK},
+		// valid
+		{name: "unsupported file ext",
+			endpoint: "/task_handler",
+			body:     badExtJSONBody,
+			status:   http.StatusBadRequest},
 	}
 
 	storage := new(memory.Storage)

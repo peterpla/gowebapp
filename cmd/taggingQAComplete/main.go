@@ -1,15 +1,13 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/go-playground/validator"
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
 
@@ -24,22 +22,19 @@ var prefix = "TaskTaggingQAComplete"
 var logPrefix = "tagging-qa-complete.main.init(),"
 var cfg config.Config
 
+// use a single instance of Validate, it caches struct info
+var validate *validator.Validate
+
 func init() {
-	if err := config.GetConfig(&cfg); err != nil {
+	if err := config.GetConfig(&cfg, prefix); err != nil {
 		msg := fmt.Sprintf(logPrefix+" GetConfig error: %v", err)
 		panic(msg)
 	}
-	// set ServiceName and QueueName appropriately
-	cfg.ServiceName = viper.GetString(prefix + "SvcName")
-	cfg.QueueName = viper.GetString(prefix + "WriteToQ")
-	cfg.NextServiceName = viper.GetString(prefix + "NextSvcToHandleReq")
 
 	// make ServiceName and QueueName available to other packages
 	serviceInfo.RegisterServiceName(cfg.ServiceName)
 	serviceInfo.RegisterQueueName(cfg.QueueName)
 	serviceInfo.RegisterNextServiceName(cfg.NextServiceName)
-
-	config.SetConfigPointer(&cfg)
 }
 
 func main() {
@@ -59,6 +54,8 @@ func main() {
 		panic("PORT undefined")
 	}
 
+	validate = validator.New()
+
 	log.Printf("Service %s listening on port %s, requests will be added to queue %s",
 		cfg.ServiceName, port, cfg.QueueName)
 	log.Fatal(http.ListenAndServe(":"+port, middleware.LogReqResp(router)))
@@ -75,26 +72,11 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		// pull task and queue names from App Engine headers
 		taskName, queueName := appengine.GetAppEngineInfo(w, r)
 
-		// Extract the request body for further task details.
-		body, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("%s.main, ReadAll error: %v", sn, err)
-			http.Error(w, "Internal Error", http.StatusInternalServerError)
+		incomingRequest := adding.Request{}
+		if err := incomingRequest.ReadRequest(w, r, p, validate); err != nil {
+			// ReadRequest called http.Error so we just return
 			return
 		}
-		// log.Printf("%s.taskHandler, body: %+v\n", sn, string(body))
-
-		// decode incoming request
-		var incomingRequest adding.Request
-
-		decoder := json.NewDecoder(bytes.NewReader(body))
-		err = decoder.Decode(&incomingRequest)
-		if err != nil {
-			log.Printf("%s.taskHandler, json.Decode error: %v", sn, err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		// log.Printf("%s.taskHandler - decoded request: %+v\n", sn, incomingRequest)
 
 		newRequest := incomingRequest
 
@@ -107,6 +89,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 
 		// add timestamps and get duration
 		var duration time.Duration
+		var err error
 		if duration, err = newRequest.AddTimestamps("BeginTaggingQAComplete", startTime, "EndTaggingQAComplete"); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-playground/validator"
 	"github.com/julienschmidt/httprouter"
 
 	"github.com/peterpla/lead-expert/pkg/adding"
@@ -23,6 +25,8 @@ func TestTranscriptQAComplete(t *testing.T) {
 	servicePrefix := "transcript-qa-complete-dot-" // <---- change to match service!!
 	port := cfg.TaskTranscriptQACompletePort       // <---- change to match service!!
 
+	validate = validator.New()
+
 	type test struct {
 		name     string
 		endpoint string
@@ -31,11 +35,8 @@ func TestTranscriptQAComplete(t *testing.T) {
 		status   int
 	}
 
-	formatString := "{ \"customer_id\": %7d, \"media_uri\": %q, \"accepted_at\": %q," +
-		" \"raw_transcript\": [{\"Transcript\": \"thank you\", \"Confidence\": 0.7815361}," +
-		" {\"Transcript\": \"already just in traffic\", \"Confidence\": 0.6951944}]}"
-	jsonBody := fmt.Sprintf(formatString, 1234567, "gs://elated-practice-224603.appspot.com/audio_uploads/audio-02.mp3",
-		time.Now().UTC().Format(time.RFC3339Nano))
+	jsonBody := fmt.Sprintf("{ \"customer_id\": %7d, \"media_uri\": %q, \"accepted_at\": %q }",
+		1234567, "gs://elated-practice-224603.appspot.com/audio_uploads/audio-02.mp3", time.Now().UTC().Format(time.RFC3339Nano))
 
 	tests := []test{
 		// valid
@@ -83,6 +84,7 @@ func TestTranscriptQAComplete(t *testing.T) {
 			if b, err = ioutil.ReadAll(rr.Body); err != nil {
 				t.Fatalf("%s: ReadAll error: %v", tc.name, err)
 			}
+			log.Printf("%s: rr.Body: %q\n", tc.name, string(b))
 			t.Errorf("%s: expected blank body, got %q", tc.name, string(b))
 		}
 	}
