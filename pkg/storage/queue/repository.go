@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
@@ -99,8 +98,8 @@ func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandle
 	taskID = createdTask.Name[i+1:]
 
 	// note whether the requestJSON passed to CreateTaskRequest became the Body of the created task
-	log.Printf("%s.queue.AddToCloudTasksQ, task %s created: %+v, on queuePath: %q\n",
-		serviceInfo.GetServiceName(), taskID, createdTask, queuePath)
+	// log.Printf("%s.queue.AddToCloudTasksQ, task %s created: %+v, on queuePath: %q\n",
+	// 	serviceInfo.GetServiceName(), taskID, createdTask, queuePath)
 
 	return taskID, nil
 }
