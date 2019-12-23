@@ -227,9 +227,9 @@ func GetConfig(cfg *Config, svc string) error {
 	}
 
 	// set Config struct fields based on calling service name
-	cfg.ServiceName = svc + "SvcName"
-	cfg.QueueName = svc + "WriteToQ"
-	cfg.NextServiceName = svc + "NextSvcToHandleReq"
+	cfg.ServiceName = viper.GetString(svc + "SvcName")
+	cfg.QueueName = viper.GetString(svc + "WriteToQ")
+	cfg.NextServiceName = viper.GetString(svc + "NextSvcToHandleReq")
 
 	SetConfigPointer(cfg)
 

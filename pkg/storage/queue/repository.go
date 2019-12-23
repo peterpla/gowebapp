@@ -35,14 +35,14 @@ func (g *GCT) AddRequest(req adding.Request) error {
 	if err != nil {
 		return fmt.Errorf("queue.AddRequest: %v", err)
 	}
-	// log.Printf("%s.queue.AddRequest, requestJSON: %s\n", serviceInfo.GetServiceName(), string(requestJSON))
+	// log.Printf("%s.queue.AddRequest, queueName: %s, nextService: %s, requestJSON: %s\n", serviceInfo.GetServiceName(), queueName, serviceToHandleRequest, string(requestJSON))
 
 	// taskID, err := g.AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandleRequest, endpoint, requestJSON)
 	_, err = g.AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandleRequest, endpoint, requestJSON)
 	if err != nil {
 		return err
 	}
-	// log.Printf("%s.queue.AddRequest - taskID %d created, exit\n", serviceInfo.GetServiceName(), taskID)
+	// log.Printf("%s.queue.AddRequest - taskID %s created, exit\n", serviceInfo.GetServiceName(), taskID)
 
 	return nil
 }

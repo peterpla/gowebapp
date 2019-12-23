@@ -17,10 +17,10 @@ func TestGetConfig(t *testing.T) {
 		ConfigFile:      "config.yaml",
 		Description:     "More leads for local retailers. Generate more sales by routing your existing traffic through a proven conversion process.",
 		IsGAE:           false,
-		QueueName:       "TestServiceWriteToQ",
+		QueueName:       "InitialRequest",
 		Router:          nil,
-		ServiceName:     "TestServiceSvcName",
-		NextServiceName: "TestServiceNextSvcToHandleReq",
+		ServiceName:     "default",
+		NextServiceName: "initial-request",
 		StorageType:     Memory,
 		// Key Management Service for encrypted config
 		EncryptedBucket: "elated-practice-224603-lead-expert-secret",
@@ -92,7 +92,7 @@ func TestGetConfig(t *testing.T) {
 	// guard against calling twice, which will trigger panic with "flag redefined"
 	if cfg.AppName == "" {
 		// uninitialized
-		if err := GetConfig(&cfg, "TestService"); err != nil {
+		if err := GetConfig(&cfg, "TaskDefault"); err != nil {
 			t.Fatalf("error from GetConfig: %v", err)
 		}
 
