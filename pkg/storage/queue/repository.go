@@ -35,14 +35,14 @@ func (g *GCT) AddRequest(req adding.Request) error {
 	if err != nil {
 		return fmt.Errorf("queue.AddRequest: %v", err)
 	}
-	// log.Printf("%s.queue.AddRequest, requestJSON: %s\n", serviceInfo.GetServiceName(), string(requestJSON))
+	// log.Printf("%s.queue.AddRequest, queueName: %s, nextService: %s, requestJSON: %s\n", serviceInfo.GetServiceName(), queueName, serviceToHandleRequest, string(requestJSON))
 
 	// taskID, err := g.AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandleRequest, endpoint, requestJSON)
 	_, err = g.AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandleRequest, endpoint, requestJSON)
 	if err != nil {
 		return err
 	}
-	// log.Printf("%s.queue.AddRequest - taskID %d created, exit\n", serviceInfo.GetServiceName(), taskID)
+	// log.Printf("%s.queue.AddRequest - taskID %s created, exit\n", serviceInfo.GetServiceName(), taskID)
 
 	return nil
 }
@@ -63,6 +63,9 @@ func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandle
 	queuePath := fmt.Sprintf("projects/%s/locations/%s/queues/%s", projectID, locationID, queueName)
 	// log.Printf("queue.AddToCloudTasksQ, queuePath: %q, service: %q\n", queuePath, serviceToHandleRequest)
 
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/json"
+
 	// Build the Task payload.
 	// https://godoc.org/google.golang.org/genproto/googleapis/cloud/tasks/v2#CreateTaskRequest
 	qReq := &taskspb.CreateTaskRequest{
@@ -72,6 +75,7 @@ func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandle
 			MessageType: &taskspb.Task_AppEngineHttpRequest{
 				AppEngineHttpRequest: &taskspb.AppEngineHttpRequest{
 					HttpMethod: taskspb.HttpMethod_POST,
+					Headers:    headers,
 					AppEngineRouting: &taskspb.AppEngineRouting{
 						Service: serviceToHandleRequest,
 					},

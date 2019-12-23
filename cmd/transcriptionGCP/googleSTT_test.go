@@ -15,6 +15,11 @@ func TestProcessTranscription(t *testing.T) {
 	}
 
 	tests := []test{
+		{"zero words",
+			[]*speechpb.WordInfo{},
+			[]string{},
+		},
+
 		{"one word",
 			[]*speechpb.WordInfo{
 				{Word: "Thank", SpeakerTag: 1},

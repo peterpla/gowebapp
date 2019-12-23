@@ -10,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-playground/validator"
 	"github.com/julienschmidt/httprouter"
+
 	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/config"
 	"github.com/peterpla/lead-expert/pkg/storage/memory"
@@ -21,6 +23,8 @@ func TestServiceDispatch(t *testing.T) {
 	cfg := config.GetConfigPointer()
 	servicePrefix := "service-dispatch-dot-" // <---- change to match service!!
 	port := cfg.TaskServiceDispatchPort      // <---- change to match service!!
+
+	validate = validator.New()
 
 	type test struct {
 		name     string

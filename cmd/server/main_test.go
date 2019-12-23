@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-playground/validator"
+	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
 
 	"github.com/peterpla/lead-expert/pkg/adding"
@@ -16,11 +18,15 @@ import (
 	"github.com/peterpla/lead-expert/pkg/storage/memory"
 )
 
+// var validate *validator.Validate
+
 func TestDefaultPost(t *testing.T) {
 
 	cfg := config.GetConfigPointer()
 	servicePrefix := ""
 	port := cfg.TaskDefaultPort
+
+	validate = validator.New()
 
 	type test struct {
 		name     string
@@ -104,6 +110,179 @@ func TestDefaultPost(t *testing.T) {
 			if b, err = ioutil.ReadAll(rr.Body); err != nil {
 				t.Fatalf("%s: ReadAll error: %v", tc.name, err)
 			}
+
+			if !strings.Contains(string(b), tc.respBody) {
+				t.Errorf("%s: expected %q, not found (in %q)", tc.name, tc.respBody, string(b))
+			}
+		}
+	}
+}
+
+func TestDefaultGetQueue(t *testing.T) {
+
+	cfg := config.GetConfigPointer()
+	servicePrefix := ""
+	port := cfg.TaskDefaultPort
+
+	validate = validator.New()
+
+	type test struct {
+		name     string
+		endpoint string
+		uuid     string
+		body     string
+		respBody string
+		status   int
+	}
+
+	tests := []test{
+		// valid
+		{name: "GET queues COMPLETED",
+			endpoint: "/queues/",
+			uuid:     adding.CompletedUUIDStr,
+			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
+			respBody: "location",
+			status:   http.StatusOK,
+		},
+		{name: "GET queues PENDING",
+			endpoint: "/queues/",
+			uuid:     adding.PendingUUIDStr,
+			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
+			respBody: "eta",
+			status:   http.StatusOK,
+		},
+		{name: "GET queues ERROR",
+			endpoint: "/queues/",
+			uuid:     adding.ErrorUUIDStr,
+			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
+			respBody: "original_status",
+			status:   http.StatusOK,
+		},
+	}
+
+	storage := new(memory.Storage)
+	adder := adding.NewService(storage)
+
+	apiPrefix := "/api/v1"
+
+	prefix := fmt.Sprintf("https://%s%s.appspot.com%s", servicePrefix, os.Getenv("PROJECT_ID"), apiPrefix)
+	if !cfg.IsGAE {
+		// prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
+		prefix = apiPrefix
+		_ = port // suppress not-used warning
+	}
+
+	for _, tc := range tests {
+
+		router := httprouter.New()
+		router.GET(prefix+tc.endpoint+":uuid", getQueueHandler(adder))
+
+		tempUUID := tc.uuid
+		if tc.uuid == "generate" {
+			tempUUID = uuid.New().String()
+		}
+		// build the GET request with custom header
+		url := prefix + tc.endpoint + tempUUID
+		// log.Printf("Test %s: %s", tc.name, url)
+
+		theRequest, err := http.NewRequest("GET", url, strings.NewReader(tc.body))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// response recorder
+		rr := httptest.NewRecorder()
+
+		// send the request
+		router.ServeHTTP(rr, theRequest)
+
+		if tc.status != rr.Code {
+			t.Errorf("%s: %q expected status code %v, got %v", tc.name, tc.endpoint, tc.status, rr.Code)
+		}
+
+		if tc.respBody != "" {
+			var b []byte
+			if b, err = ioutil.ReadAll(rr.Body); err != nil {
+				t.Fatalf("%s: ReadAll error: %v", tc.name, err)
+			}
+			// log.Printf("%s: response body: %q\n", tc.name, string(b))
+
+			if !strings.Contains(string(b), tc.respBody) {
+				t.Errorf("%s: expected %q, not found (in %q)", tc.name, tc.respBody, string(b))
+			}
+		}
+	}
+}
+
+func TestDefaultGetTranscript(t *testing.T) {
+
+	cfg := config.GetConfigPointer()
+	servicePrefix := ""
+	port := cfg.TaskDefaultPort
+
+	validate = validator.New()
+
+	type test struct {
+		name     string
+		endpoint string
+		body     string
+		respBody string
+		status   int
+	}
+
+	tests := []test{
+		// valid
+		{name: "valid GET transcripts",
+			endpoint: "/transcripts/",
+			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
+			respBody: "transcript",
+			status:   http.StatusOK,
+		},
+		// TODO: test for "status_for_req" = "ERROR", "PENDING", "COMPLETE"
+	}
+
+	storage := new(memory.Storage)
+	adder := adding.NewService(storage)
+
+	apiPrefix := "/api/v1"
+
+	prefix := fmt.Sprintf("https://%s%s.appspot.com%s", servicePrefix, os.Getenv("PROJECT_ID"), apiPrefix)
+	if !cfg.IsGAE {
+		// prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
+		prefix = apiPrefix
+		_ = port // suppress not-used warning
+	}
+
+	for _, tc := range tests {
+
+		router := httprouter.New()
+		router.GET(prefix+tc.endpoint+":uuid", getTranscriptHandler(adder))
+
+		// build the GET request with custom header
+		url := prefix + tc.endpoint + uuid.New().String() // TODO: use a non-random UUID
+		// log.Printf("Test %s: %s", tc.name, url)
+
+		theRequest, err := http.NewRequest("GET", url, strings.NewReader(tc.body))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// response recorder
+		rr := httptest.NewRecorder()
+
+		// send the request
+		router.ServeHTTP(rr, theRequest)
+
+		if tc.status != rr.Code {
+			t.Errorf("%s: %q expected status code %v, got %v", tc.name, tc.endpoint, tc.status, rr.Code)
+		}
+
+		if tc.respBody != "" {
+			var b []byte
+			if b, err = ioutil.ReadAll(rr.Body); err != nil {
+				t.Fatalf("%s: ReadAll error: %v", tc.name, err)
+			}
+			// log.Printf("%s: response body: %q\n", tc.name, string(b))
 
 			if !strings.Contains(string(b), tc.respBody) {
 				t.Errorf("%s: expected %q, not found (in %q)", tc.name, tc.respBody, string(b))

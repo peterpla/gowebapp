@@ -24,7 +24,7 @@ import (
 //
 // (gdeploy.sh deploys the app to Google App Engine, encrypting the local
 // configuration file using Cloud KMS and writing it to Cloud Storage.)
-func GetConfig(cfg *Config) error {
+func GetConfig(cfg *Config, svc string) error {
 	// log.Printf("%s, entering Config, cfg: %+v", sn, cfg)
 
 	// ***** ***** process command line flags ***** *****
@@ -199,12 +199,12 @@ func GetConfig(cfg *Config) error {
 		return err
 	}
 
-	// add to Config struct the values read from encrypted config file
+	// set Config struct fields read from encrypted config file
 	cfg.AppName = viper.GetString("AppName")
 	cfg.Description = viper.GetString("Description")
 	cfg.Version = viper.GetString("Version")
 
-	// set Config struct values based on execution environment
+	// set Config struct fields based on execution environment
 	cfg.IsGAE = false
 	cfg.StorageType = Memory
 	if os.Getenv("GAE_ENV") != "" {
@@ -225,6 +225,13 @@ func GetConfig(cfg *Config) error {
 		log.Fatalf("GetConfig, unsupported cfg.StorageType: %v", cfg.StorageType)
 		panic("unsupported storageType")
 	}
+
+	// set Config struct fields based on calling service name
+	cfg.ServiceName = viper.GetString(svc + "SvcName")
+	cfg.QueueName = viper.GetString(svc + "WriteToQ")
+	cfg.NextServiceName = viper.GetString(svc + "NextSvcToHandleReq")
+
+	SetConfigPointer(cfg)
 
 	// log.Printf("GetConfig exiting, cfg: %+v\n", cfg)
 	return nil

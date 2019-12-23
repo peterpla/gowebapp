@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-playground/validator"
 	"github.com/julienschmidt/httprouter"
 	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/config"
@@ -22,6 +23,8 @@ func TestTaggingQA(t *testing.T) {
 	servicePrefix := "tagging-qa-dot-" // <---- change to match service!!
 	port := cfg.TaskTaggingQAPort      // <---- change to match service!!
 
+	validate = validator.New()
+
 	type test struct {
 		name     string
 		endpoint string
@@ -30,7 +33,7 @@ func TestTaggingQA(t *testing.T) {
 		status   int
 	}
 
-	jsonBody := fmt.Sprintf("{ \"customer_id\": %7d, \"media_uri\": %q, \"accepted_at\": %q, \"tags\": 1 }",
+	jsonBody := fmt.Sprintf("{ \"customer_id\": %7d, \"media_uri\": %q, \"accepted_at\": %q }",
 		1234567, "gs://elated-practice-224603.appspot.com/audio_uploads/audio-02.mp3", time.Now().UTC().Format(time.RFC3339Nano))
 
 	tests := []test{
