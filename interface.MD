@@ -84,7 +84,7 @@ Body, JSON: *(key order is random, no ordering)*
 
   Date and time the Request was accepted (processing began), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
 
-* **"location"** (on success) - string
+* **"location"** (on `202 Accepted`) - string
 
   Endpoint to `GET` for status of processing this request.
 
@@ -160,7 +160,7 @@ Body, JSON: *(key order is random, no ordering)*
 
 * **"request_id"** (always) - string - [RFC4112](https://tools.ietf.org/html/rfc4122) v4
 
-  UUID identifier of *this* Request, created by the server. No need for the client to retain this.
+  UUID identifier of *this* Request, created by the server.
 
 * **"customer_id"** (always) - integer
 
@@ -173,6 +173,10 @@ Body, JSON: *(key order is random, no ordering)*
 * **"accepted_at"** (always) - string - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt)
 
   Date and time this Request was accepted (processing began), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
+
+* **"original_request_id"** (always) - string - [RFC4112](https://tools.ietf.org/html/rfc4122) v4
+
+  UUID identifier of *the original* Request, created by the server.
 
 * **"original_status"** (on success) - string
 
@@ -194,7 +198,7 @@ Body, JSON: *(key order is random, no ordering)*
 
 * **"original_status"** (only for `status` = `"ERROR"`) - int - [IANA HTTP Status Code Registry](https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml)
 
-  Error status of `4xx` or `5xx`) from processing *the original request*.
+  Error status of `4xx` or `5xx` from processing *the original* request.
 
 Example Response Body:
 

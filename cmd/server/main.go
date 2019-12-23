@@ -22,6 +22,7 @@ import (
 var prefix = "TaskDefault"
 var initLogPrefix = "default.main.init(),"
 var cfg config.Config
+var apiPrefix = "/api/v1"
 
 // use a single instance of Validate, it caches struct info
 var validate *validator.Validate
@@ -40,8 +41,6 @@ func init() {
 
 func main() {
 	// log.Printf("Enter default.main\n")
-
-	apiPrefix := "/api/v1"
 
 	router := httprouter.New()
 	router.POST(apiPrefix+"/requests", postHandler(cfg.Adder))
@@ -83,6 +82,8 @@ func postHandler(a adding.Service) httprouter.Handle {
 		}
 		newRequest.RequestID = uuid.New()
 		newRequest.AcceptedAt = time.Now().UTC().Format(time.RFC3339Nano)
+		newRequest.Status = adding.Pending
+		location := getStatusURI(newRequest.RequestID)
 
 		// add timestamps and get duration
 		var duration time.Duration
@@ -94,7 +95,7 @@ func postHandler(a adding.Service) httprouter.Handle {
 		// add the request (e.g., to a queue) for subsequent processing
 		returnedReq := a.AddRequest(newRequest)
 
-		// TODO: add "location", endpoint to query for status of this request
+		// TODO: save returnedRequest to database
 
 		// provide selected fields of Request as the HTTP response
 		response := adding.PostResponse{
@@ -102,6 +103,7 @@ func postHandler(a adding.Service) httprouter.Handle {
 			CustomerID:   returnedReq.CustomerID,
 			MediaFileURI: returnedReq.MediaFileURI,
 			AcceptedAt:   returnedReq.AcceptedAt,
+			Location:     location,
 		}
 
 		// send response to client
@@ -115,6 +117,10 @@ func postHandler(a adding.Service) httprouter.Handle {
 
 		log.Printf("%s.postHandler, completed in %v, newRequest: %+v\n", sn, duration, newRequest)
 	}
+}
+
+func getStatusURI(reqID uuid.UUID) string {
+	return apiPrefix + "/queues/" + reqID.String()
 }
 
 // ********** ********** ********** ********** ********** **********
@@ -148,18 +154,61 @@ func getQueueHandler(a adding.Service) httprouter.Handle {
 			return
 		}
 
-		// !!! HACK !!! - fake a response, since we don't have the database running
+		// !!! HACK !!! - fake a response, since we don't have the database running - !!! HACK !!!
 		acceptedAt := startTime.Add(time.Second * -1)
 		log.Printf("%s.getQueueHandler, =====> PLACEHOLDER <===== query database for status of %s\n",
 			sn, requestedUUID)
 
-		// !!! HACK !!! - should get this from database
-		statusOfReq := adding.Request{
+		// !!! HACK !!! - should get this from database - !!! HACK !!!
+		originalRequest := adding.Request{
 			RequestID:    requestedUUID,
 			CustomerID:   reqForStatus.CustomerID,
 			MediaFileURI: reqForStatus.MediaFileURI,
-			Status:       "PENDING",
+			Status:       adding.Pending,
 			AcceptedAt:   acceptedAt.Format(time.RFC3339Nano),
+		}
+
+		// handle special UUIDs used for testing
+		if requestedUUID.String() == adding.PendingUUIDStr {
+			originalRequest.RequestID = adding.PendingUUID
+			originalRequest.Status = adding.Pending
+			originalRequest.OriginalStatus = 0
+		}
+		if requestedUUID.String() == adding.CompletedUUIDStr {
+			originalRequest.RequestID = adding.CompletedUUID
+			originalRequest.Status = adding.Completed
+			originalRequest.OriginalStatus = http.StatusOK
+		}
+		if requestedUUID.String() == adding.ErrorUUIDStr {
+			originalRequest.RequestID = adding.ErrorUUID
+			originalRequest.Status = adding.Error
+			originalRequest.OriginalStatus = http.StatusBadRequest
+		}
+
+		// provide selected fields of Request as the HTTP response
+		response := adding.GetQueueResponse{
+			RequestID:         reqForStatus.RequestID,
+			CustomerID:        originalRequest.CustomerID,
+			MediaFileURI:      originalRequest.MediaFileURI,
+			AcceptedAt:        originalRequest.AcceptedAt,
+			OriginalRequestID: originalRequest.RequestID,
+		}
+
+		switch originalRequest.Status {
+		case adding.Error:
+			response.OriginalStatus = originalRequest.OriginalStatus
+		case adding.Pending:
+			etaTime := time.Now().UTC()
+			etaTime = etaTime.Add(time.Second * 45) // TODO: calculate multiplier based on recent processing time
+			response.ETA = etaTime.Format(time.RFC3339Nano)
+			response.OriginalStatus = originalRequest.OriginalStatus
+		case adding.Completed:
+			response.Location = getLocationURI(requestedUUID)
+			response.OriginalStatus = originalRequest.OriginalStatus
+		default:
+			log.Printf("%s.getQueueHandler, invalid originalRequest.Status: %v\n", sn, originalRequest.Status)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		// add timestamps and get duration
@@ -167,27 +216,6 @@ func getQueueHandler(a adding.Service) httprouter.Handle {
 		if duration, err = reqForStatus.AddTimestamps("BeginDefault", startTime.Format(time.RFC3339Nano), "EndDefault"); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
-		}
-
-		// provide selected fields of Request as the HTTP response
-		response := adding.GetQueueResponse{
-			RequestID:        reqForStatus.RequestID,
-			CustomerID:       statusOfReq.CustomerID,
-			MediaFileURI:     statusOfReq.MediaFileURI,
-			AcceptedAt:       statusOfReq.AcceptedAt,
-			StatusForRequest: requestedUUID,
-			StatusOfRequest:  statusOfReq.Status,
-		}
-
-		switch statusOfReq.Status {
-		case "ERROR":
-			// TODO: provide StatusOfRequest value, update GetQueueResponse with original_status, omit-if-empty
-		case "PENDING":
-			// TODO: provide "eta" value, update GetQueueResponse with eta, omit-if-empty
-		case "COMPLETED":
-			// TODO: provide "location" value, update GetQueueResponse with location, omit-if-empty
-		default:
-			// TODO: handle invalid Status case
 		}
 
 		// send response to client
@@ -201,6 +229,11 @@ func getQueueHandler(a adding.Service) httprouter.Handle {
 
 		log.Printf("%s.getQueueHandler, completed in %v, response: %+v\n", sn, duration, response)
 	}
+}
+
+func getLocationURI(reqID uuid.UUID) string {
+	return apiPrefix + "/transcripts/" + reqID.String()
+
 }
 
 // ********** ********** ********** ********** ********** **********

@@ -129,6 +129,7 @@ func TestDefaultGetQueue(t *testing.T) {
 	type test struct {
 		name     string
 		endpoint string
+		uuid     string
 		body     string
 		respBody string
 		status   int
@@ -136,13 +137,27 @@ func TestDefaultGetQueue(t *testing.T) {
 
 	tests := []test{
 		// valid
-		{name: "valid GET queues",
+		{name: "GET queues COMPLETED",
 			endpoint: "/queues/",
+			uuid:     adding.CompletedUUIDStr,
 			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
-			respBody: "status_for_req",
+			respBody: "location",
 			status:   http.StatusOK,
 		},
-		// TODO: test for "status_for_req" = "ERROR", "PENDING", "COMPLETE"
+		{name: "GET queues PENDING",
+			endpoint: "/queues/",
+			uuid:     adding.PendingUUIDStr,
+			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
+			respBody: "eta",
+			status:   http.StatusOK,
+		},
+		{name: "GET queues ERROR",
+			endpoint: "/queues/",
+			uuid:     adding.ErrorUUIDStr,
+			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
+			respBody: "original_status",
+			status:   http.StatusOK,
+		},
 	}
 
 	storage := new(memory.Storage)
@@ -162,8 +177,12 @@ func TestDefaultGetQueue(t *testing.T) {
 		router := httprouter.New()
 		router.GET(prefix+tc.endpoint+":uuid", getQueueHandler(adder))
 
+		tempUUID := tc.uuid
+		if tc.uuid == "generate" {
+			tempUUID = uuid.New().String()
+		}
 		// build the GET request with custom header
-		url := prefix + tc.endpoint + uuid.New().String() // TODO: use a non-random UUID
+		url := prefix + tc.endpoint + tempUUID
 		// log.Printf("Test %s: %s", tc.name, url)
 
 		theRequest, err := http.NewRequest("GET", url, strings.NewReader(tc.body))

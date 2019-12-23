@@ -18,6 +18,18 @@ import (
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
+const Pending string = "PENDING"
+const Error string = "ERROR"
+const Completed string = "COMPLETED"
+
+// special UUIDs used for testing purposes
+var PendingUUIDStr = "da4ae569-484d-4f59-bc52-c876058252d8"
+var PendingUUID = uuid.MustParse(PendingUUIDStr)
+var ErrorUUIDStr = "aa4073c3-5ae8-4344-9c29-41e15414e609"
+var ErrorUUID = uuid.MustParse(ErrorUUIDStr)
+var CompletedUUIDStr = "6697be3b-bdfa-4438-9e2a-ea1511dd0e40"
+var CompletedUUID = uuid.MustParse(CompletedUUIDStr)
+
 // ErrTimestampsKeyExists - key provided already exists
 var ErrTimestampsKeyExists = errors.New("Timestamps key exists")
 
@@ -30,7 +42,8 @@ type Request struct {
 	RequestID         uuid.UUID         `json:"request_id"`
 	CustomerID        int               `json:"customer_id" validate:"required,gte=1,lt=10000000"`
 	MediaFileURI      string            `json:"media_uri" validate:"required,uri"`
-	Status            string            `json:"status"` // one of "PENDING", "ERROR", "COMPLETED"
+	Status            string            `json:"status"`          // one of "PENDING", "ERROR", "COMPLETED"
+	OriginalStatus    int               `json:"original_status"` // as reported throughout the pipeline
 	AcceptedAt        string            `json:"accepted_at"`
 	CompletedAt       string            `json:"completed_at"`
 	WorkingTranscript string            `json:"working_transcript"`
@@ -152,17 +165,20 @@ type PostResponse struct {
 	CustomerID   int       `json:"customer_id"`
 	MediaFileURI string    `json:"media_uri"`
 	AcceptedAt   string    `json:"accepted_at"`
+	Location     string    `json:"location,omitempty"`
 }
 
 // GetQueueResponse holds seelcted fields of Result struct to include in
 // HTTP response to GET /queue/{uuid} request
 type GetQueueResponse struct {
-	RequestID        uuid.UUID `json:"request_id"`
-	CustomerID       int       `json:"customer_id"`
-	MediaFileURI     string    `json:"media_uri"`
-	AcceptedAt       string    `json:"accepted_at"`
-	StatusForRequest uuid.UUID `json:"status_for_req"`
-	StatusOfRequest  string    `json:"status_of_req"`
+	RequestID         uuid.UUID `json:"request_id"`
+	CustomerID        int       `json:"customer_id"`
+	MediaFileURI      string    `json:"media_uri"`
+	AcceptedAt        string    `json:"accepted_at"`
+	OriginalRequestID uuid.UUID `json:"original_request_id"`
+	ETA               string    `json:"eta,omitempty"`             // time.Time.String()
+	Location          string    `json:"location,omitempty"`        // uri
+	OriginalStatus    int       `json:"original_status,omitempty"` // http.Status*
 }
 
 type GetTranscriptResponse struct {
