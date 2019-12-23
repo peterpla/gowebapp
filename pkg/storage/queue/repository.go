@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
@@ -63,6 +64,9 @@ func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandle
 	queuePath := fmt.Sprintf("projects/%s/locations/%s/queues/%s", projectID, locationID, queueName)
 	// log.Printf("queue.AddToCloudTasksQ, queuePath: %q, service: %q\n", queuePath, serviceToHandleRequest)
 
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/json"
+
 	// Build the Task payload.
 	// https://godoc.org/google.golang.org/genproto/googleapis/cloud/tasks/v2#CreateTaskRequest
 	qReq := &taskspb.CreateTaskRequest{
@@ -72,6 +76,7 @@ func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandle
 			MessageType: &taskspb.Task_AppEngineHttpRequest{
 				AppEngineHttpRequest: &taskspb.AppEngineHttpRequest{
 					HttpMethod: taskspb.HttpMethod_POST,
+					Headers:    headers,
 					AppEngineRouting: &taskspb.AppEngineRouting{
 						Service: serviceToHandleRequest,
 					},
@@ -94,8 +99,8 @@ func (g *GCT) AddToCloudTasksQ(projectID, locationID, queueName, serviceToHandle
 	taskID = createdTask.Name[i+1:]
 
 	// note whether the requestJSON passed to CreateTaskRequest became the Body of the created task
-	// log.Printf("%s.queue.AddToCloudTasksQ, task %s created: %+v, on queuePath: %q\n",
-	// 	serviceInfo.GetServiceName(), taskID, createdTask, queuePath)
+	log.Printf("%s.queue.AddToCloudTasksQ, task %s created: %+v, on queuePath: %q\n",
+		serviceInfo.GetServiceName(), taskID, createdTask, queuePath)
 
 	return taskID, nil
 }
