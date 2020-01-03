@@ -15,7 +15,7 @@ import (
 
 	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/config"
-	"github.com/peterpla/lead-expert/pkg/storage/memory"
+	"github.com/peterpla/lead-expert/pkg/queue"
 )
 
 // var validate *validator.Validate
@@ -72,8 +72,13 @@ func TestDefaultPost(t *testing.T) {
 			status:   http.StatusBadRequest},
 	}
 
-	storage := new(memory.Storage)
-	adder := adding.NewService(storage)
+	// storage := new(memory.Storage)
+	// adder := adding.NewService(storage)
+
+	qi = queue.QueueInfo{}
+	// q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
+	q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks
+	qs = queue.NewService(q)
 
 	apiPrefix := "/api/v1"
 
@@ -87,7 +92,7 @@ func TestDefaultPost(t *testing.T) {
 		// log.Printf("Test %s: %s", tc.name, url)
 
 		router := httprouter.New()
-		router.POST("/api/v1/requests", postHandler(adder))
+		router.POST("/api/v1/requests", postHandler(q))
 
 		// build the POST request with custom header
 		theRequest, err := http.NewRequest("POST", url, strings.NewReader(tc.body))
@@ -141,7 +146,7 @@ func TestDefaultGetQueue(t *testing.T) {
 			endpoint: "/queues/",
 			uuid:     adding.CompletedUUIDStr,
 			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
-			respBody: "location",
+			respBody: "endpoint",
 			status:   http.StatusOK,
 		},
 		{name: "GET queues PENDING",
@@ -160,8 +165,8 @@ func TestDefaultGetQueue(t *testing.T) {
 		},
 	}
 
-	storage := new(memory.Storage)
-	adder := adding.NewService(storage)
+	// storage := new(memory.Storage)
+	// adder := adding.NewService(storage)
 
 	apiPrefix := "/api/v1"
 
@@ -175,7 +180,7 @@ func TestDefaultGetQueue(t *testing.T) {
 	for _, tc := range tests {
 
 		router := httprouter.New()
-		router.GET(prefix+tc.endpoint+":uuid", getQueueHandler(adder))
+		router.GET(prefix+tc.endpoint+":uuid", getQueueHandler())
 
 		tempUUID := tc.uuid
 		if tc.uuid == "generate" {
@@ -241,8 +246,8 @@ func TestDefaultGetTranscript(t *testing.T) {
 		// TODO: test for "status_for_req" = "ERROR", "PENDING", "COMPLETE"
 	}
 
-	storage := new(memory.Storage)
-	adder := adding.NewService(storage)
+	// storage := new(memory.Storage)
+	// adder := adding.NewService(storage)
 
 	apiPrefix := "/api/v1"
 
@@ -256,7 +261,7 @@ func TestDefaultGetTranscript(t *testing.T) {
 	for _, tc := range tests {
 
 		router := httprouter.New()
-		router.GET(prefix+tc.endpoint+":uuid", getTranscriptHandler(adder))
+		router.GET(prefix+tc.endpoint+":uuid", getTranscriptHandler())
 
 		// build the GET request with custom header
 		url := prefix + tc.endpoint + uuid.New().String() // TODO: use a non-random UUID

@@ -1,13 +1,14 @@
 package queue
 
 import (
-	"github.com/peterpla/lead-expert/pkg/adding/"
+	"github.com/peterpla/lead-expert/pkg/adding"
 )
 
 // QueueInfo identifies key properties of a queue
 type QueueInfo struct {
-	Name string // Name of queue
+	Name            string // Name of queue
 	ServiceToHandle string // Name of service to receive this request
+	HandlerEndpoint string // Endpoint to receive this request
 }
 
 // Queue is an abstract interface that defines operations
@@ -16,6 +17,7 @@ type Queue interface {
 	Create(q *QueueInfo) error
 	Connect(q *QueueInfo) error
 	Add(q *QueueInfo, request *adding.Request) error
+	InfoFromConfig(q *QueueInfo) error // populate QueueInfo with config
 }
 
 // ********** ********** ********** ********** ********** **********
@@ -48,14 +50,5 @@ func (qs *queueService) ConnectToQueue(qi *QueueInfo) error {
 }
 
 func (qs *queueService) AddToQueue(qi *QueueInfo, request *adding.Request) error {
-	
-	// JSON-encode the incoming req as the payload message
-	requestJSON, err := json.Marshal(request)
-	if err != nil {
-		return fmt.Errorf("queue.AddToQueue: %v", err)
-	}
-	log.Printf("%s.queue.AddRequest, queueName: %s, nextService: %s, requestJSON: %s\n",
-		serviceInfo.GetServiceName(), qi.Name, cfg.NextServiceName, string(requestJSON))
-
-	return qs.queue.Add(qi, requestJSON)
+	return qs.queue.Add(qi, request)
 }

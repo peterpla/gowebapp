@@ -165,7 +165,7 @@ type PostResponse struct {
 	CustomerID   int       `json:"customer_id"`
 	MediaFileURI string    `json:"media_uri"`
 	AcceptedAt   string    `json:"accepted_at"`
-	Location     string    `json:"location,omitempty"`
+	PollEndpoint string    `json:"poll_endpoint,omitempty"`
 }
 
 // GetQueueResponse holds seelcted fields of Result struct to include in
@@ -177,7 +177,7 @@ type GetQueueResponse struct {
 	AcceptedAt        string    `json:"accepted_at"`
 	OriginalRequestID uuid.UUID `json:"original_request_id"`
 	ETA               string    `json:"eta,omitempty"`             // time.Time.String()
-	Location          string    `json:"location,omitempty"`        // uri
+	Endpoint          string    `json:"endpoint,omitempty"`        // uri
 	OriginalStatus    int       `json:"original_status,omitempty"` // http.Status*
 }
 

@@ -24,7 +24,9 @@ var prefix = "TaskDefault"
 var initLogPrefix = "default.main.init(),"
 var cfg config.Config
 var apiPrefix = "/api/v1"
-var useQueue queue.QueueInfo
+var q queue.Queue
+var qi = queue.QueueInfo{}
+var qs queue.QueueService
 
 // use a single instance of Validate, it caches struct info
 var validate *validator.Validate
@@ -44,20 +46,19 @@ func init() {
 func main() {
 	// log.Printf("Enter default.main\n")
 
-	if !cfg.IsGAE {
-		useQueue.Name = "local"
-		useQueue.ServiceToHandle = ""
-	} else {
-		// Google Cloud Tasks
-		useQueue.Name = fmt.Sprintf("projects/%s/locations/%s/queues/%s",
-			cfg.ProjectID, cfg.TasksLocation, cfg.QueueName)
-		useQueue.ServiceToHandle = cfg.NextServiceName
-	}
+	// if cfg.IsGAE {
+	q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks for queueing
+	// } else {
+	// 	q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
+	// }
+
+	qs = queue.NewService(q)
+	_ = qs
 
 	router := httprouter.New()
-	router.POST(apiPrefix+"/requests", postHandler(cfg.Adder))
-	router.GET(apiPrefix+"/queues/:uuid", getQueueHandler(cfg.Adder))
-	router.GET(apiPrefix+"/transcripts/:uuid", getTranscriptHandler(cfg.Adder))
+	router.POST(apiPrefix+"/requests", postHandler(q))
+	router.GET(apiPrefix+"/queues/:uuid", getQueueHandler())
+	router.GET(apiPrefix+"/transcripts/:uuid", getTranscriptHandler())
 	router.GET("/", indexHandler)
 	router.NotFound = http.HandlerFunc(myNotFound)
 	cfg.Router = router
@@ -78,7 +79,7 @@ func main() {
 }
 
 // postHandler returns the handler func for POST /requests
-func postHandler(a adding.Service) httprouter.Handle {
+func postHandler(q queue.Queue) httprouter.Handle {
 	var err error
 	sn := cfg.ServiceName
 
@@ -95,7 +96,6 @@ func postHandler(a adding.Service) httprouter.Handle {
 		newRequest.RequestID = uuid.New()
 		newRequest.AcceptedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		newRequest.Status = adding.Pending
-		location := getStatusURI(newRequest.RequestID)
 
 		// add timestamps and get duration
 		var duration time.Duration
@@ -105,7 +105,14 @@ func postHandler(a adding.Service) httprouter.Handle {
 		}
 
 		// add the request (e.g., to a queue) for subsequent processing
-		returnedReq := a.AddRequest(newRequest)
+		// returnedReq := a.AddRequest(newRequest)
+		// queue the request for subsequent processing
+		if err := q.Add(&qi, &newRequest); err != nil {
+			log.Printf("%s.postHandler, q.Add error: +%v\n", sn, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		returnedReq := newRequest // TODO: collapse newRequest and returnedReq into one
 
 		// TODO: save returnedRequest to database
 
@@ -115,7 +122,7 @@ func postHandler(a adding.Service) httprouter.Handle {
 			CustomerID:   returnedReq.CustomerID,
 			MediaFileURI: returnedReq.MediaFileURI,
 			AcceptedAt:   returnedReq.AcceptedAt,
-			Location:     location,
+			PollEndpoint: getStatusURI(newRequest.RequestID),
 		}
 
 		// send response to client
@@ -138,7 +145,7 @@ func getStatusURI(reqID uuid.UUID) string {
 // ********** ********** ********** ********** ********** **********
 
 // getQueueHandler returns the handler func for GET /queue
-func getQueueHandler(a adding.Service) httprouter.Handle {
+func getQueueHandler() httprouter.Handle {
 	sn := cfg.ServiceName
 	// log.Printf("%s.getQueueHandler, enter/exit\n", sn)
 
@@ -213,9 +220,9 @@ func getQueueHandler(a adding.Service) httprouter.Handle {
 			etaTime := time.Now().UTC()
 			etaTime = etaTime.Add(time.Second * 45) // TODO: calculate multiplier based on recent processing time
 			response.ETA = etaTime.Format(time.RFC3339Nano)
-			response.OriginalStatus = originalRequest.OriginalStatus
+			response.Endpoint = getStatusURI(originalRequest.RequestID)
 		case adding.Completed:
-			response.Location = getLocationURI(requestedUUID)
+			response.Endpoint = getLocationURI(originalRequest.RequestID)
 			response.OriginalStatus = originalRequest.OriginalStatus
 		default:
 			log.Printf("%s.getQueueHandler, invalid originalRequest.Status: %v\n", sn, originalRequest.Status)
@@ -251,7 +258,7 @@ func getLocationURI(reqID uuid.UUID) string {
 // ********** ********** ********** ********** ********** **********
 
 // getTranscriptHandler returns the handler func for GET /queue
-func getTranscriptHandler(a adding.Service) httprouter.Handle {
+func getTranscriptHandler() httprouter.Handle {
 	sn := cfg.ServiceName
 	// log.Printf("%s.getTranscriptHandler, enter/exit\n", sn)
 
