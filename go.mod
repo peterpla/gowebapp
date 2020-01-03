@@ -15,4 +15,5 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.6.1
 	google.golang.org/genproto v0.0.0-20191220175831-5c49e3ecc1c1
+	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 )

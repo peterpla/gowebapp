@@ -16,6 +16,7 @@ import (
 	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/config"
 	"github.com/peterpla/lead-expert/pkg/middleware"
+	"github.com/peterpla/lead-expert/pkg/queue"
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
@@ -23,6 +24,7 @@ var prefix = "TaskDefault"
 var initLogPrefix = "default.main.init(),"
 var cfg config.Config
 var apiPrefix = "/api/v1"
+var useQueue queue.QueueInfo
 
 // use a single instance of Validate, it caches struct info
 var validate *validator.Validate
@@ -41,6 +43,16 @@ func init() {
 
 func main() {
 	// log.Printf("Enter default.main\n")
+
+	if !cfg.IsGAE {
+		useQueue.Name = "local"
+		useQueue.ServiceToHandle = ""
+	} else {
+		// Google Cloud Tasks
+		useQueue.Name = fmt.Sprintf("projects/%s/locations/%s/queues/%s",
+			cfg.ProjectID, cfg.TasksLocation, cfg.QueueName)
+		useQueue.ServiceToHandle = cfg.NextServiceName
+	}
 
 	router := httprouter.New()
 	router.POST(apiPrefix+"/requests", postHandler(cfg.Adder))
