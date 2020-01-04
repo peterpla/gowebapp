@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/peterpla/lead-expert/pkg/config"
-	"github.com/peterpla/lead-expert/pkg/database/fstore"
+	"github.com/peterpla/lead-expert/pkg/database"
 	"github.com/peterpla/lead-expert/pkg/middleware"
 	"github.com/peterpla/lead-expert/pkg/queue"
 	"github.com/peterpla/lead-expert/pkg/request"
@@ -25,7 +25,7 @@ var prefix = "TaskDefault"
 var initLogPrefix = "default.main.init(),"
 var cfg config.Config
 var apiPrefix = "/api/v1"
-var repo *request.RequestRepository
+var repo request.RequestRepository
 var q queue.Queue
 var qi = queue.QueueInfo{}
 var qs queue.QueueService
@@ -48,7 +48,8 @@ func init() {
 func main() {
 	// log.Printf("Enter default.main\n")
 
-	repo = fstore.NewFirestoreRequestRepository(cfg.ProjectID, "leadexperts-users")
+	// TODO: load collection from configuration (env var)
+	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, "leadexperts-users")
 
 	if cfg.IsGAE {
 		q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks for queueing
@@ -116,7 +117,7 @@ func postHandler(q queue.Queue) httprouter.Handle {
 		}
 		returnedReq := newRequest // TODO: collapse newRequest and returnedReq into one
 
-		if err := repo.Create(returnedReq); err != nil {
+		if err := repo.Create(&returnedReq); err != nil {
 			log.Printf("%s.postHandler, repo.Create error: +%v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

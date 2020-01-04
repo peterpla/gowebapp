@@ -1,4 +1,4 @@
-package fstore
+package database
 
 import (
 	"context"
@@ -25,15 +25,18 @@ func NewFirestoreRequestRepository(projID string, coll string) request.RequestRe
 	log.Printf("%s.fstore.NewFirestoreRequestRepository, projID: %q, coll: %q\n",
 		sn, projID, coll)
 
-	return &requestRepository{
+	return requestRepository{
 		projID,
 		coll,
 	}
 }
 
-func (r *requestRepository) Create(request *request.Request) error {
+// Create writes the Request to the database
+func (r requestRepository) Create(request *request.Request) error {
 	sn := serviceInfo.GetNextServiceName()
 	// See Exercise as example: https://github.com/peterpla/exercise/blob/master/backend/
+
+	// TODO: lock the request while it's being written?
 
 	// get a map corresponding to the Request
 	userMap, err := request.ToMap()
@@ -80,13 +83,12 @@ func (r *requestRepository) Create(request *request.Request) error {
 		log.Printf("r.createUser, DataTo returned err: %+v", err)
 		return ErrCreateError
 	}
-
-	// TODO: update Request from marshalling returned Result
+	log.Printf("%s.fstore.Create, createdUser: +%v\n", sn, createdUser)
 
 	return nil
 }
 
-func (r *requestRepository) FindByID(reqID uuid.UUID) (*request.Request, error) {
+func (r requestRepository) FindByID(reqID uuid.UUID) (*request.Request, error) {
 	// See Exercise as example: https://github.com/peterpla/exercise/blob/master/backend/
 	var emptyRequest = request.Request{}
 

@@ -267,6 +267,7 @@ func (req *Request) ToMap() (map[string]interface{}, error) {
 	var reqJSON []byte
 	var err error
 
+	// TODO: more efficient Request->map conversion than JSON marshal/unmarshal
 	// first generate JSON representation of Request
 	if reqJSON, err = json.Marshal(req); err != nil {
 		log.Printf("%s.request.ToMap, json.Marshal error: %v\n", sn, err)
@@ -278,7 +279,7 @@ func (req *Request) ToMap() (map[string]interface{}, error) {
 		log.Printf("%s.request.ToMap, json.Unmarshal error: %v\n", sn, err)
 		return emptyMap, err
 	}
-	log.Printf("%s.request.ToMap, returning newMap: %+v\n", sn, newMap)
+	// log.Printf("%s.request.ToMap, returning newMap: %+v\n", sn, newMap)
 
 	return newMap, nil
 }
