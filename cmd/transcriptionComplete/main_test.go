@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,9 +13,8 @@ import (
 	"github.com/go-playground/validator"
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/config"
-	"github.com/peterpla/lead-expert/pkg/storage/memory"
+	"github.com/peterpla/lead-expert/pkg/queue"
 )
 
 func TestTranscriptionComplete(t *testing.T) {
@@ -29,6 +27,7 @@ func TestTranscriptionComplete(t *testing.T) {
 
 	type test struct {
 		name     string
+		method   string
 		endpoint string
 		body     string
 		respBody string
@@ -41,13 +40,25 @@ func TestTranscriptionComplete(t *testing.T) {
 	tests := []test{
 		// valid
 		{name: "valid POST /task_handler",
+			method:   "POST",
 			endpoint: "/task_handler",
 			body:     jsonBody,
 			status:   http.StatusOK},
+		{name: "valid GET /",
+			method:   "GET",
+			endpoint: "/",
+			respBody: "service running",
+			status:   http.StatusOK},
+		{name: "invalid GET /nope",
+			method:   "GET",
+			endpoint: "/nope",
+			respBody: "not found",
+			status:   http.StatusNotFound},
 	}
 
-	storage := new(memory.Storage)
-	adder := adding.NewService(storage)
+	qi = queue.QueueInfo{}
+	q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
+	// q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks
 
 	prefix := fmt.Sprintf("http://localhost:%s", port)
 	if cfg.IsGAE {
@@ -59,10 +70,11 @@ func TestTranscriptionComplete(t *testing.T) {
 		// log.Printf("Test %s: %s", tc.name, url)
 
 		router := httprouter.New()
-		router.POST("/task_handler", taskHandler(adder))
+		router.POST("/task_handler", taskHandler(q))
+		router.GET("/", indexHandler)
 
 		// build the POST request with custom header
-		theRequest, err := http.NewRequest("POST", url, strings.NewReader(tc.body))
+		theRequest, err := http.NewRequest(tc.method, url, strings.NewReader(tc.body))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -84,8 +96,11 @@ func TestTranscriptionComplete(t *testing.T) {
 			if b, err = ioutil.ReadAll(rr.Body); err != nil {
 				t.Fatalf("%s: ReadAll error: %v", tc.name, err)
 			}
-			log.Printf("%s: rr.Body: %q\n", tc.name, string(b))
-			t.Errorf("%s: expected blank body, got %q", tc.name, string(b))
+			// log.Printf("%s: rr.Body: %q\n", tc.name, string(b))
+
+			if !strings.Contains(string(b), tc.respBody) {
+				t.Errorf("%s: expected %q, not found (in %q)", tc.name, tc.respBody, string(b))
+			}
 		}
 	}
 }

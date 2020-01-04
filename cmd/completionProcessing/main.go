@@ -17,12 +17,16 @@ import (
 	"github.com/peterpla/lead-expert/pkg/appengine"
 	"github.com/peterpla/lead-expert/pkg/config"
 	"github.com/peterpla/lead-expert/pkg/middleware"
+	"github.com/peterpla/lead-expert/pkg/queue"
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
 var prefix = "TaskCompletionProcessing"
 var initLogPrefix = "completion-processing.main.init(),"
 var cfg config.Config
+var q queue.Queue
+var qi = queue.QueueInfo{}
+var qs queue.QueueService
 
 // use a single instance of Validate, it caches struct info
 var validate *validator.Validate
@@ -42,8 +46,17 @@ func init() {
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
 
+	if cfg.IsGAE {
+		q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks for queueing
+	} else {
+		q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
+	}
+
+	qs = queue.NewService(q)
+	_ = qs
+
 	router := httprouter.New()
-	router.POST("/task_handler", taskHandler(cfg.Adder)) // default endpoint Cloud Tasks POSTs to
+	router.POST("/task_handler", taskHandler()) // default endpoint Cloud Tasks POSTs to
 	router.GET("/", indexHandler)
 	router.NotFound = http.HandlerFunc(myNotFound)
 	cfg.Router = router
@@ -64,7 +77,7 @@ func main() {
 }
 
 // handler for Cloud Tasks POSTs
-func taskHandler(a adding.Service) httprouter.Handle {
+func taskHandler() httprouter.Handle {
 	sn := cfg.ServiceName
 
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {

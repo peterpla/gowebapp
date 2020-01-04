@@ -46,11 +46,11 @@ func init() {
 func main() {
 	// log.Printf("Enter default.main\n")
 
-	// if cfg.IsGAE {
-	q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks for queueing
-	// } else {
-	// 	q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
-	// }
+	if cfg.IsGAE {
+		q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks for queueing
+	} else {
+		q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
+	}
 
 	qs = queue.NewService(q)
 	_ = qs
@@ -104,9 +104,7 @@ func postHandler(q queue.Queue) httprouter.Handle {
 			return
 		}
 
-		// add the request (e.g., to a queue) for subsequent processing
-		// returnedReq := a.AddRequest(newRequest)
-		// queue the request for subsequent processing
+		// create task on the next pipeline stage's queue with request
 		if err := q.Add(&qi, &newRequest); err != nil {
 			log.Printf("%s.postHandler, q.Add error: +%v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

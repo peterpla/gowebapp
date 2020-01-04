@@ -72,12 +72,9 @@ func TestDefaultPost(t *testing.T) {
 			status:   http.StatusBadRequest},
 	}
 
-	// storage := new(memory.Storage)
-	// adder := adding.NewService(storage)
-
 	qi = queue.QueueInfo{}
-	// q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
-	q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks
+	q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
+	// q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks
 	qs = queue.NewService(q)
 
 	apiPrefix := "/api/v1"
