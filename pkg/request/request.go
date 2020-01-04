@@ -257,3 +257,28 @@ func (req *Request) RequestDuration() (time.Duration, error) {
 	return completed.Sub(accepted), nil
 
 }
+
+func (req *Request) ToMap() (map[string]interface{}, error) {
+	sn := serviceInfo.GetServiceName()
+
+	emptyMap := make(map[string]interface{})
+	newMap := make(map[string]interface{})
+
+	var reqJSON []byte
+	var err error
+
+	// first generate JSON representation of Request
+	if reqJSON, err = json.Marshal(req); err != nil {
+		log.Printf("%s.request.ToMap, json.Marshal error: %v\n", sn, err)
+		return emptyMap, err
+	}
+
+	// unmarshall the JSON into the map
+	if err := json.Unmarshal(reqJSON, &newMap); err != nil {
+		log.Printf("%s.request.ToMap, json.Unmarshal error: %v\n", sn, err)
+		return emptyMap, err
+	}
+	log.Printf("%s.request.ToMap, returning newMap: %+v\n", sn, newMap)
+
+	return newMap, nil
+}
