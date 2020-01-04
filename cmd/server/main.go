@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/database/fstore"
 	"github.com/peterpla/lead-expert/pkg/middleware"
 	"github.com/peterpla/lead-expert/pkg/queue"
 	"github.com/peterpla/lead-expert/pkg/request"
@@ -115,7 +116,12 @@ func postHandler(q queue.Queue) httprouter.Handle {
 		}
 		returnedReq := newRequest // TODO: collapse newRequest and returnedReq into one
 
-		// TODO: save returnedRequest to database
+		if err := repo.Create(returnedReq); err != nil {
+			log.Printf("%s.postHandler, repo.Create error: +%v\n", sn, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+
+		}
 
 		// provide selected fields of Request as the HTTP response
 		response := request.PostResponse{
