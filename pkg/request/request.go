@@ -51,6 +51,11 @@ type Request struct {
 	Timestamps        map[string]string `json:"timestamps"`
 }
 
+type RequestRepository interface {
+	Create(request *Request) error
+	FindByID(reqID uuid.UUID) (*Request, error)
+}
+
 func (req *Request) ReadRequest(w http.ResponseWriter, r *http.Request, p httprouter.Params, validate *validator.Validate) error {
 	sn := serviceInfo.GetServiceName()
 

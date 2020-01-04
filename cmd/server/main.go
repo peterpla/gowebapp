@@ -24,6 +24,7 @@ var prefix = "TaskDefault"
 var initLogPrefix = "default.main.init(),"
 var cfg config.Config
 var apiPrefix = "/api/v1"
+var repo *request.RequestRepository
 var q queue.Queue
 var qi = queue.QueueInfo{}
 var qs queue.QueueService
@@ -45,6 +46,8 @@ func init() {
 
 func main() {
 	// log.Printf("Enter default.main\n")
+
+	repo = fstore.NewFirestoreRequestRepository(cfg.ProjectID, "leadexperts-users")
 
 	if cfg.IsGAE {
 		q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks for queueing
