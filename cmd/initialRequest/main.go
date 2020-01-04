@@ -11,11 +11,11 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
 
-	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/appengine"
 	"github.com/peterpla/lead-expert/pkg/config"
 	"github.com/peterpla/lead-expert/pkg/middleware"
 	"github.com/peterpla/lead-expert/pkg/queue"
+	"github.com/peterpla/lead-expert/pkg/request"
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
@@ -84,7 +84,7 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 		// pull task and queue names from App Engine headers
 		taskName, queueName := appengine.GetAppEngineInfo(w, r)
 
-		newRequest := adding.Request{}
+		newRequest := request.Request{}
 		if err := newRequest.ReadRequest(w, r, p, validate); err != nil {
 			// ReadRequest called http.Error so we just return
 			return

@@ -13,10 +13,10 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
 
-	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/config"
 	"github.com/peterpla/lead-expert/pkg/middleware"
 	"github.com/peterpla/lead-expert/pkg/queue"
+	"github.com/peterpla/lead-expert/pkg/request"
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
@@ -87,7 +87,7 @@ func postHandler(q queue.Queue) httprouter.Handle {
 		startTime := time.Now().UTC()
 		// log.Printf("%s.main.postHandler, enter\n", sn)
 
-		newRequest := adding.Request{}
+		newRequest := request.Request{}
 		if err = newRequest.ReadRequest(w, r, p, validate); err != nil {
 			// log.Printf("%s.postHandler, err: %v\n", sn, err)
 			// readRequest calls http.Error() on error
@@ -95,7 +95,7 @@ func postHandler(q queue.Queue) httprouter.Handle {
 		}
 		newRequest.RequestID = uuid.New()
 		newRequest.AcceptedAt = time.Now().UTC().Format(time.RFC3339Nano)
-		newRequest.Status = adding.Pending
+		newRequest.Status = request.Pending
 
 		// add timestamps and get duration
 		var duration time.Duration
@@ -115,7 +115,7 @@ func postHandler(q queue.Queue) httprouter.Handle {
 		// TODO: save returnedRequest to database
 
 		// provide selected fields of Request as the HTTP response
-		response := adding.PostResponse{
+		response := request.PostResponse{
 			RequestID:    returnedReq.RequestID,
 			CustomerID:   returnedReq.CustomerID,
 			MediaFileURI: returnedReq.MediaFileURI,
@@ -154,7 +154,7 @@ func getQueueHandler() httprouter.Handle {
 		// log.Printf("%s.getQueueHandler, enter\n", sn)
 
 		var err error
-		reqForStatus := adding.Request{}
+		reqForStatus := request.Request{}
 		if err = reqForStatus.ReadRequest(w, r, p, validate); err != nil {
 			log.Printf("%s.getQueueHandler, err: %v\n", sn, err)
 			// readRequest calls http.Error() on error
@@ -177,33 +177,33 @@ func getQueueHandler() httprouter.Handle {
 			sn, requestedUUID)
 
 		// !!! HACK !!! - should get this from database - !!! HACK !!!
-		originalRequest := adding.Request{
+		originalRequest := request.Request{
 			RequestID:    requestedUUID,
 			CustomerID:   reqForStatus.CustomerID,
 			MediaFileURI: reqForStatus.MediaFileURI,
-			Status:       adding.Pending,
+			Status:       request.Pending,
 			AcceptedAt:   acceptedAt.Format(time.RFC3339Nano),
 		}
 
 		// handle special UUIDs used for testing
-		if requestedUUID.String() == adding.PendingUUIDStr {
-			originalRequest.RequestID = adding.PendingUUID
-			originalRequest.Status = adding.Pending
+		if requestedUUID.String() == request.PendingUUIDStr {
+			originalRequest.RequestID = request.PendingUUID
+			originalRequest.Status = request.Pending
 			originalRequest.OriginalStatus = 0
 		}
-		if requestedUUID.String() == adding.CompletedUUIDStr {
-			originalRequest.RequestID = adding.CompletedUUID
-			originalRequest.Status = adding.Completed
+		if requestedUUID.String() == request.CompletedUUIDStr {
+			originalRequest.RequestID = request.CompletedUUID
+			originalRequest.Status = request.Completed
 			originalRequest.OriginalStatus = http.StatusOK
 		}
-		if requestedUUID.String() == adding.ErrorUUIDStr {
-			originalRequest.RequestID = adding.ErrorUUID
-			originalRequest.Status = adding.Error
+		if requestedUUID.String() == request.ErrorUUIDStr {
+			originalRequest.RequestID = request.ErrorUUID
+			originalRequest.Status = request.Error
 			originalRequest.OriginalStatus = http.StatusBadRequest
 		}
 
 		// provide selected fields of Request as the HTTP response
-		response := adding.GetQueueResponse{
+		response := request.GetQueueResponse{
 			RequestID:         reqForStatus.RequestID,
 			CustomerID:        originalRequest.CustomerID,
 			MediaFileURI:      originalRequest.MediaFileURI,
@@ -212,14 +212,14 @@ func getQueueHandler() httprouter.Handle {
 		}
 
 		switch originalRequest.Status {
-		case adding.Error:
+		case request.Error:
 			response.OriginalStatus = originalRequest.OriginalStatus
-		case adding.Pending:
+		case request.Pending:
 			etaTime := time.Now().UTC()
 			etaTime = etaTime.Add(time.Second * 45) // TODO: calculate multiplier based on recent processing time
 			response.ETA = etaTime.Format(time.RFC3339Nano)
 			response.Endpoint = getStatusURI(originalRequest.RequestID)
-		case adding.Completed:
+		case request.Completed:
 			response.Endpoint = getLocationURI(originalRequest.RequestID)
 			response.OriginalStatus = originalRequest.OriginalStatus
 		default:
@@ -267,7 +267,7 @@ func getTranscriptHandler() httprouter.Handle {
 		// log.Printf("%s.getTranscriptHandler, enter\n", sn)
 
 		var err error
-		reqForTranscript := adding.Request{}
+		reqForTranscript := request.Request{}
 		if err = reqForTranscript.ReadRequest(w, r, p, validate); err != nil {
 			log.Printf("%s.getTranscriptHandler, err: %v\n", sn, err)
 			// readRequest calls http.Error() on error
@@ -292,7 +292,7 @@ func getTranscriptHandler() httprouter.Handle {
 			sn, requestedUUID)
 
 		// !!! HACK !!! - should get this from database - !!! HACK !!!
-		completedRequest := adding.Request{
+		completedRequest := request.Request{
 			RequestID:       requestedUUID,
 			CustomerID:      reqForTranscript.CustomerID,
 			MediaFileURI:    reqForTranscript.MediaFileURI,
@@ -310,7 +310,7 @@ func getTranscriptHandler() httprouter.Handle {
 		}
 
 		// provide selected fields of Request as the HTTP response
-		response := adding.GetTranscriptResponse{
+		response := request.GetTranscriptResponse{
 			RequestID:    reqForTranscript.RequestID, // this request for transcript
 			CustomerID:   completedRequest.CustomerID,
 			MediaFileURI: completedRequest.MediaFileURI,

@@ -55,9 +55,6 @@ func TestCompletionProcessing(t *testing.T) {
 			respBody: "not found",
 			status:   http.StatusNotFound}}
 
-	// storage := new(memory.Storage)
-	// adder := adding.NewService(storage)
-
 	prefix := fmt.Sprintf("http://localhost:%s", port)
 	if cfg.IsGAE {
 		prefix = fmt.Sprintf("https://%s%s.appspot.com", servicePrefix, os.Getenv("PROJECT_ID"))

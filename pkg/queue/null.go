@@ -1,6 +1,6 @@
 package queue
 
-import "github.com/peterpla/lead-expert/pkg/adding"
+import "github.com/peterpla/lead-expert/pkg/request"
 
 // ********** ********** ********** ********** ********** **********
 
@@ -26,7 +26,7 @@ func (gct *nullSystem) Connect(qi *QueueInfo) error {
 	return nil
 }
 
-func (gct *nullSystem) Add(qi *QueueInfo, request *adding.Request) error {
+func (gct *nullSystem) Add(qi *QueueInfo, request *request.Request) error {
 	return nil
 }
 

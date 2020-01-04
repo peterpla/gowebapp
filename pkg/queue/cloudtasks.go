@@ -9,8 +9,8 @@ import (
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
 
-	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/request"
 )
 
 // ********** ********** ********** ********** ********** **********
@@ -38,7 +38,7 @@ func (gct *gctSystem) Connect(qi *QueueInfo) error {
 	return nil
 }
 
-func (gct *gctSystem) Add(qi *QueueInfo, request *adding.Request) error {
+func (gct *gctSystem) Add(qi *QueueInfo, request *request.Request) error {
 	// add the request to the GCT queue
 
 	// JSON-encode the incoming req as the payload message

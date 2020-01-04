@@ -1,7 +1,7 @@
 package queue
 
 import (
-	"github.com/peterpla/lead-expert/pkg/adding"
+	"github.com/peterpla/lead-expert/pkg/request"
 )
 
 // QueueInfo identifies key properties of a queue
@@ -16,7 +16,7 @@ type QueueInfo struct {
 type Queue interface {
 	Create(q *QueueInfo) error
 	Connect(q *QueueInfo) error
-	Add(q *QueueInfo, request *adding.Request) error
+	Add(q *QueueInfo, request *request.Request) error
 	InfoFromConfig(q *QueueInfo) error // populate QueueInfo with config
 }
 
@@ -27,7 +27,7 @@ type Queue interface {
 type QueueService interface {
 	CreateQueue(q *QueueInfo) error
 	ConnectToQueue(q *QueueInfo) error
-	AddToQueue(q *QueueInfo, request *adding.Request) error
+	AddToQueue(q *QueueInfo, request *request.Request) error
 }
 
 type queueService struct {
@@ -50,6 +50,6 @@ func (qs *queueService) ConnectToQueue(qi *QueueInfo) error {
 	return qs.queue.Connect(qi)
 }
 
-func (qs *queueService) AddToQueue(qi *QueueInfo, request *adding.Request) error {
+func (qs *queueService) AddToQueue(qi *QueueInfo, request *request.Request) error {
 	return qs.queue.Add(qi, request)
 }

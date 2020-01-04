@@ -13,9 +13,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/config"
 	"github.com/peterpla/lead-expert/pkg/queue"
+	"github.com/peterpla/lead-expert/pkg/request"
 )
 
 // var validate *validator.Validate
@@ -141,29 +141,26 @@ func TestDefaultGetQueue(t *testing.T) {
 		// valid
 		{name: "GET queues COMPLETED",
 			endpoint: "/queues/",
-			uuid:     adding.CompletedUUIDStr,
+			uuid:     request.CompletedUUIDStr,
 			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
 			respBody: "endpoint",
 			status:   http.StatusOK,
 		},
 		{name: "GET queues PENDING",
 			endpoint: "/queues/",
-			uuid:     adding.PendingUUIDStr,
+			uuid:     request.PendingUUIDStr,
 			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
 			respBody: "eta",
 			status:   http.StatusOK,
 		},
 		{name: "GET queues ERROR",
 			endpoint: "/queues/",
-			uuid:     adding.ErrorUUIDStr,
+			uuid:     request.ErrorUUIDStr,
 			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
 			respBody: "original_status",
 			status:   http.StatusOK,
 		},
 	}
-
-	// storage := new(memory.Storage)
-	// adder := adding.NewService(storage)
 
 	apiPrefix := "/api/v1"
 
@@ -242,9 +239,6 @@ func TestDefaultGetTranscript(t *testing.T) {
 		},
 		// TODO: test for "status_for_req" = "ERROR", "PENDING", "COMPLETE"
 	}
-
-	// storage := new(memory.Storage)
-	// adder := adding.NewService(storage)
 
 	apiPrefix := "/api/v1"
 

@@ -85,7 +85,7 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 		// pull task and queue names from App Engine headers
 		taskName, queueName := appengine.GetAppEngineInfo(w, r)
 
-		incomingRequest := adding.Request{}
+		incomingRequest := request.Request{}
 		if err := incomingRequest.ReadRequest(w, r, p, validate); err != nil {
 			// ReadRequest called http.Error so we just return
 			return

@@ -1,4 +1,4 @@
-package adding
+package request
 
 import (
 	"encoding/json"
@@ -63,7 +63,7 @@ func (req *Request) ReadRequest(w http.ResponseWriter, r *http.Request, p httpro
 		if errors.As(err, &mr) {
 			http.Error(w, mr.msg, mr.status)
 		} else {
-			log.Println("%s.adding.ReadRequest, " + err.Error())
+			log.Println("%s.request.ReadRequest, " + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
 		return err
@@ -75,11 +75,11 @@ func (req *Request) ReadRequest(w http.ResponseWriter, r *http.Request, p httpro
 	// See https://github.com/go-playground/validator/blob/master/doc.go
 	err = validate.Struct(req)
 	if err != nil {
-		log.Printf("%s.adding.ReadRequest, validation error: %v\n", sn, err)
+		log.Printf("%s.request.ReadRequest, validation error: %v\n", sn, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
-	// log.Printf("%s.adding.ReadRequest - validated request: %+v\n", sn, newRequest)
+	// log.Printf("%s.request.ReadRequest - validated request: %+v\n", sn, newRequest)
 
 	return nil
 }
@@ -198,27 +198,27 @@ func (req *Request) AddTimestamps(startKey, startTimestamp, endKey string) (time
 	var err error
 
 	if startTime, err = time.Parse(time.RFC3339Nano, startTimestamp); err != nil {
-		log.Printf("adding.AddTimestamps ERROR: startTime %s does not parse (RFC3339Nano)\n", startTimestamp)
+		log.Printf("request.AddTimestamps ERROR: startTime %s does not parse (RFC3339Nano)\n", startTimestamp)
 		return badTime, ErrTimestampsKeyExists
 	}
 
 	// initialize map if needed
 	if req.Timestamps == nil {
-		// log.Printf("adding.AddTimestamps initializing Timestamps map in Request\n")
+		// log.Printf("request.AddTimestamps initializing Timestamps map in Request\n")
 		req.Timestamps = make(map[string]string)
 	}
 
 	// if startKey already exists, return error
 	startKeyValue, ok := req.Timestamps[startKey]
 	if ok {
-		log.Printf("adding.AddTimestamps ERROR: key %s exists with value %s\n", startKey, startKeyValue)
+		log.Printf("request.AddTimestamps ERROR: key %s exists with value %s\n", startKey, startKeyValue)
 		return badTime, ErrTimestampsKeyExists
 	}
 
 	// if endKey already exists, return error
 	endKeyValue, ok := req.Timestamps[endKey]
 	if ok {
-		log.Printf("adding.AddTimestamp ERROR: key %s exists with value %s\n", endKey, endKeyValue)
+		log.Printf("request.AddTimestamp ERROR: key %s exists with value %s\n", endKey, endKeyValue)
 		return badTime, ErrTimestampsKeyExists
 	}
 
@@ -240,12 +240,12 @@ func (req *Request) RequestDuration() (time.Duration, error) {
 
 	accepted, err = time.Parse(time.RFC3339Nano, req.AcceptedAt)
 	if err != nil {
-		log.Printf("%s.adding.RequestDuration, time.Parse error: %v from AcceptedAt: %v\n", serviceInfo.GetServiceName(), err, req.AcceptedAt)
+		log.Printf("%s.request.RequestDuration, time.Parse error: %v from AcceptedAt: %v\n", serviceInfo.GetServiceName(), err, req.AcceptedAt)
 		return badDuration, err
 	}
 	completed, _ = time.Parse(time.RFC3339Nano, req.CompletedAt)
 	if err != nil {
-		log.Printf("%s.adding.RequestDuration, time.Parse error: %v from CompletedAt: %v\n", serviceInfo.GetServiceName(), err, req.CompletedAt)
+		log.Printf("%s.request.RequestDuration, time.Parse error: %v from CompletedAt: %v\n", serviceInfo.GetServiceName(), err, req.CompletedAt)
 		return badDuration, err
 	}
 

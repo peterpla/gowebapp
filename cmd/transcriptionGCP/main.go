@@ -18,12 +18,12 @@ import (
 	"github.com/spf13/viper"
 	speechpb "google.golang.org/genproto/googleapis/cloud/speech/v1"
 
-	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/appengine"
 	"github.com/peterpla/lead-expert/pkg/check"
 	"github.com/peterpla/lead-expert/pkg/config"
 	"github.com/peterpla/lead-expert/pkg/middleware"
 	"github.com/peterpla/lead-expert/pkg/queue"
+	"github.com/peterpla/lead-expert/pkg/request"
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
@@ -95,7 +95,7 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 		// pull task and queue names from App Engine headers
 		taskName, queueName := appengine.GetAppEngineInfo(w, r)
 
-		incomingRequest := adding.Request{}
+		incomingRequest := request.Request{}
 		if err := incomingRequest.ReadRequest(w, r, p, validate); err != nil {
 			// ReadRequest called http.Error so we just return
 			return
@@ -118,7 +118,7 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 
 		// log.Printf("%s.taskHandler - decoded request: %+v\n", sn, incomingRequest)
 
-		var newRequest adding.Request
+		var newRequest request.Request
 		var err error
 
 		// submit transcription request
@@ -178,12 +178,12 @@ func myNotFound(w http.ResponseWriter, r *http.Request) {
 // ErrBadMediaFileURI
 var ErrBadMediaFileURI = errors.New("Bad media_uri")
 
-func googleSpeechToText(req adding.Request) (adding.Request, error) {
+func googleSpeechToText(req request.Request) (request.Request, error) {
 	// sn := serviceInfo.GetServiceName()
 	// log.Printf("%s.googleSpeechToText, request: %+v\n", sn, req)
 
-	var emptyRequest = adding.Request{}
-	var badRequest adding.Request
+	var emptyRequest = request.Request{}
+	var badRequest request.Request
 	var err error
 
 	// Overall flow:
@@ -282,7 +282,7 @@ func getGoogleSTTResponse(ctx context.Context, client *speech.Client, req *speec
 }
 
 // copyAndConvertMediaFile ensures the media file is available on Google Cloud Storage
-func copyAndConvertMediaFile(req adding.Request) error {
+func copyAndConvertMediaFile(req request.Request) error {
 	sn := serviceInfo.GetServiceName()
 
 	uri := req.MediaFileURI
@@ -346,7 +346,7 @@ type Transcript struct {
 	workingTranscript string
 }
 
-func processTranscriptionResponse(req adding.Request, resp *speechpb.LongRunningRecognizeResponse) adding.Request {
+func processTranscriptionResponse(req request.Request, resp *speechpb.LongRunningRecognizeResponse) request.Request {
 	sn := serviceInfo.GetServiceName()
 	// log.Printf("%s.processTranscriptionResponse, request: %+v, LongRunningRecognizeResponse: %+v\n",
 	// 	sn, req, resp)
@@ -402,7 +402,7 @@ func processTranscriptionResponse(req adding.Request, resp *speechpb.LongRunning
 	return newRequest
 }
 
-func newTranscript(req adding.Request) Transcript {
+func newTranscript(req request.Request) Transcript {
 	var transcript = Transcript{
 		requestID:    req.RequestID,
 		mediaFileURI: req.MediaFileURI,
