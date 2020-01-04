@@ -12,7 +12,6 @@ func TestGetConfig(t *testing.T) {
 	var cfg Config
 
 	defaultResult := Config{
-		Adder:           nil,
 		AppName:         "MyLeadExpert",
 		ConfigFile:      "config.yaml",
 		Description:     "More leads for local retailers. Generate more sales by routing your existing traffic through a proven conversion process.",
@@ -96,8 +95,8 @@ func TestGetConfig(t *testing.T) {
 			t.Fatalf("error from GetConfig: %v", err)
 		}
 
-		// CHEAT: nil-out the actual .Adder, hard to compare addresses
-		cfg.Adder = nil
+		// CHEAT: nil-out the actual QueueService, hard to compare addresses
+		// cfg.QueueService = nil
 
 		if !cmp.Equal(defaultResult, cfg) {
 			findMismatch(t, defaultResult, cfg)
@@ -109,10 +108,6 @@ func findMismatch(t *testing.T, expected Config, got Config) {
 
 	var foundMismatch = false
 
-	if expected.Adder != got.Adder {
-		foundMismatch = true
-		t.Errorf("Adder: expected %v, got %v", expected.Adder, got.Adder)
-	}
 	if expected.AppName != got.AppName {
 		foundMismatch = true
 		t.Errorf("AppName: expected %q, got %q", expected.AppName, got.AppName)

@@ -14,7 +14,8 @@ import (
 )
 
 // ********** ********** ********** ********** ********** **********
-// GCTAdapter implements QueueSystem specifically for Google Cloud Tasks
+
+// gctSystem implements QueueSystem specifically for Google Cloud Tasks
 type gctSystem struct {
 	//
 }

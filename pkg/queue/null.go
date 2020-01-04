@@ -3,6 +3,7 @@ package queue
 import "github.com/peterpla/lead-expert/pkg/adding"
 
 // ********** ********** ********** ********** ********** **********
+
 // nullSystem implements Queue interface for a null in-memory queue.
 // I.e., Create and Connect are null, Add's are thrown away.
 type nullSystem struct {

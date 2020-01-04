@@ -21,6 +21,7 @@ type Queue interface {
 }
 
 // ********** ********** ********** ********** ********** **********
+
 // QueueService defines the business logic to interact with a queue,
 // most of which pass through to the underlying adapter
 type QueueService interface {
