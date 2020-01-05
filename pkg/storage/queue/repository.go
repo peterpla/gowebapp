@@ -10,17 +10,17 @@ import (
 	"github.com/spf13/viper"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
 
-	"github.com/peterpla/lead-expert/pkg/adding"
+	"github.com/peterpla/lead-expert/pkg/request"
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
 // Store data in Google Cloud Tasks queue
 type GCT struct {
-	// requests []adding.Request
+	// requests []request.Request
 }
 
 // Add the request to the repository, i.e., Google Cloud Tasks queue
-func (g *GCT) AddRequest(req adding.Request) error {
+func (g *GCT) AddRequest(req request.Request) error {
 	// log.Printf("%s.queue.AddRequest - enter\n", serviceInfo.GetServiceName())
 
 	// assemble the Task queue path components

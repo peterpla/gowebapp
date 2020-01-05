@@ -12,16 +12,17 @@ func TestGetConfig(t *testing.T) {
 	var cfg Config
 
 	defaultResult := Config{
-		Adder:           nil,
-		AppName:         "MyLeadExpert",
-		ConfigFile:      "config.yaml",
-		Description:     "More leads for local retailers. Generate more sales by routing your existing traffic through a proven conversion process.",
-		IsGAE:           false,
-		QueueName:       "InitialRequest",
-		Router:          nil,
-		ServiceName:     "default",
-		NextServiceName: "initial-request",
-		StorageType:     Memory,
+		AppName:           "MyLeadExpert",
+		ConfigFile:        "config.yaml",
+		Description:       "More leads for local retailers. Generate more sales by routing your existing traffic through a proven conversion process.",
+		DatabaseCustomers: "leadexperts-customers",
+		DatabaseRequests:  "leadexperts-requests",
+		IsGAE:             false,
+		QueueName:         "InitialRequest",
+		Router:            nil,
+		ServiceName:       "default",
+		NextServiceName:   "initial-request",
+		StorageType:       Memory,
 		// Key Management Service for encrypted config
 		EncryptedBucket: "elated-practice-224603-lead-expert-secret",
 		KmsKey:          "config",
@@ -96,8 +97,8 @@ func TestGetConfig(t *testing.T) {
 			t.Fatalf("error from GetConfig: %v", err)
 		}
 
-		// CHEAT: nil-out the actual .Adder, hard to compare addresses
-		cfg.Adder = nil
+		// CHEAT: nil-out the actual QueueService, hard to compare addresses
+		// cfg.QueueService = nil
 
 		if !cmp.Equal(defaultResult, cfg) {
 			findMismatch(t, defaultResult, cfg)
@@ -109,10 +110,6 @@ func findMismatch(t *testing.T, expected Config, got Config) {
 
 	var foundMismatch = false
 
-	if expected.Adder != got.Adder {
-		foundMismatch = true
-		t.Errorf("Adder: expected %v, got %v", expected.Adder, got.Adder)
-	}
 	if expected.AppName != got.AppName {
 		foundMismatch = true
 		t.Errorf("AppName: expected %q, got %q", expected.AppName, got.AppName)
@@ -121,6 +118,17 @@ func findMismatch(t *testing.T, expected Config, got Config) {
 		foundMismatch = true
 		t.Errorf("ConfigFile: expected %q, got %q", expected.ConfigFile, got.ConfigFile)
 	}
+
+	// Databases
+	if expected.DatabaseCustomers != got.DatabaseCustomers {
+		foundMismatch = true
+		t.Errorf("DatabaseCustomers: expected %q, got %q", expected.DatabaseCustomers, got.DatabaseCustomers)
+	}
+	if expected.DatabaseRequests != got.DatabaseRequests {
+		foundMismatch = true
+		t.Errorf("DatabaseRequests: expected %q, got %q", expected.DatabaseRequests, got.DatabaseRequests)
+	}
+
 	if expected.Description != got.Description {
 		foundMismatch = true
 		t.Errorf("Description: expected %q, got %q", expected.Description, got.Description)
@@ -393,6 +401,6 @@ func findMismatch(t *testing.T, expected Config, got Config) {
 	}
 
 	if !foundMismatch {
-		log.Println("findMismatch: mismatch NOT found")
+		log.Printf("findMismatch: =====> mismatch NOT found <=====\nexpected: %+v\ngot: %+v\n", expected, got)
 	}
 }

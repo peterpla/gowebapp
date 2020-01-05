@@ -13,9 +13,9 @@ import (
 	"github.com/go-playground/validator"
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/config"
-	"github.com/peterpla/lead-expert/pkg/storage/memory"
+	"github.com/peterpla/lead-expert/pkg/database"
+	"github.com/peterpla/lead-expert/pkg/queue"
 )
 
 func TestTranscriptionGCP(t *testing.T) {
@@ -23,6 +23,7 @@ func TestTranscriptionGCP(t *testing.T) {
 	cfg := config.GetConfigPointer()
 	servicePrefix := "transcription-gcp-dot-" // <---- change to match service!!
 	port := cfg.TaskTranscriptionGCPPort      // <---- change to match service!!
+	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
 
 	validate = validator.New()
 
@@ -52,8 +53,10 @@ func TestTranscriptionGCP(t *testing.T) {
 			status:   http.StatusBadRequest},
 	}
 
-	storage := new(memory.Storage)
-	adder := adding.NewService(storage)
+	qi = queue.QueueInfo{}
+	q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
+	// q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks
+	qs = queue.NewService(q)
 
 	prefix := fmt.Sprintf("http://localhost:%s", port)
 	if cfg.IsGAE {
@@ -65,7 +68,7 @@ func TestTranscriptionGCP(t *testing.T) {
 		// log.Printf("Test %s: %s", tc.name, url)
 
 		router := httprouter.New()
-		router.POST("/task_handler", taskHandler(adder))
+		router.POST("/task_handler", taskHandler(q))
 
 		// build the POST request with custom header
 		theRequest, err := http.NewRequest("POST", url, strings.NewReader(tc.body))

@@ -13,9 +13,11 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
 
-	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/database"
 	"github.com/peterpla/lead-expert/pkg/middleware"
+	"github.com/peterpla/lead-expert/pkg/queue"
+	"github.com/peterpla/lead-expert/pkg/request"
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
@@ -23,6 +25,10 @@ var prefix = "TaskDefault"
 var initLogPrefix = "default.main.init(),"
 var cfg config.Config
 var apiPrefix = "/api/v1"
+var repo request.RequestRepository
+var q queue.Queue
+var qi = queue.QueueInfo{}
+var qs queue.QueueService
 
 // use a single instance of Validate, it caches struct info
 var validate *validator.Validate
@@ -42,10 +48,22 @@ func init() {
 func main() {
 	// log.Printf("Enter default.main\n")
 
+	// connect to the Request database
+	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
+
+	if cfg.IsGAE {
+		q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks for queueing
+	} else {
+		q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
+	}
+
+	qs = queue.NewService(q)
+	_ = qs
+
 	router := httprouter.New()
-	router.POST(apiPrefix+"/requests", postHandler(cfg.Adder))
-	router.GET(apiPrefix+"/queues/:uuid", getQueueHandler(cfg.Adder))
-	router.GET(apiPrefix+"/transcripts/:uuid", getTranscriptHandler(cfg.Adder))
+	router.POST(apiPrefix+"/requests", postHandler(q))
+	router.GET(apiPrefix+"/queues/:uuid", getQueueHandler())
+	router.GET(apiPrefix+"/transcripts/:uuid", getTranscriptHandler())
 	router.GET("/", indexHandler)
 	router.NotFound = http.HandlerFunc(myNotFound)
 	cfg.Router = router
@@ -66,7 +84,7 @@ func main() {
 }
 
 // postHandler returns the handler func for POST /requests
-func postHandler(a adding.Service) httprouter.Handle {
+func postHandler(q queue.Queue) httprouter.Handle {
 	var err error
 	sn := cfg.ServiceName
 
@@ -74,7 +92,7 @@ func postHandler(a adding.Service) httprouter.Handle {
 		startTime := time.Now().UTC()
 		// log.Printf("%s.main.postHandler, enter\n", sn)
 
-		newRequest := adding.Request{}
+		newRequest := request.Request{}
 		if err = newRequest.ReadRequest(w, r, p, validate); err != nil {
 			// log.Printf("%s.postHandler, err: %v\n", sn, err)
 			// readRequest calls http.Error() on error
@@ -82,8 +100,7 @@ func postHandler(a adding.Service) httprouter.Handle {
 		}
 		newRequest.RequestID = uuid.New()
 		newRequest.AcceptedAt = time.Now().UTC().Format(time.RFC3339Nano)
-		newRequest.Status = adding.Pending
-		location := getStatusURI(newRequest.RequestID)
+		newRequest.Status = request.Pending
 
 		// add timestamps and get duration
 		var duration time.Duration
@@ -92,18 +109,28 @@ func postHandler(a adding.Service) httprouter.Handle {
 			return
 		}
 
-		// add the request (e.g., to a queue) for subsequent processing
-		returnedReq := a.AddRequest(newRequest)
+		// write the Request to the Requests database
+		if err := repo.Create(&newRequest); err != nil {
+			log.Printf("%s.postHandler, repo.Create error: +%v\n", sn, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-		// TODO: save returnedRequest to database
+		// create task on the next pipeline stage's queue with request
+		if err := q.Add(&qi, &newRequest); err != nil {
+			log.Printf("%s.postHandler, q.Add error: +%v\n", sn, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		returnedReq := newRequest // TODO: collapse newRequest and returnedReq into one
 
 		// provide selected fields of Request as the HTTP response
-		response := adding.PostResponse{
+		response := request.PostResponse{
 			RequestID:    returnedReq.RequestID,
 			CustomerID:   returnedReq.CustomerID,
 			MediaFileURI: returnedReq.MediaFileURI,
 			AcceptedAt:   returnedReq.AcceptedAt,
-			Location:     location,
+			PollEndpoint: getStatusURI(newRequest.RequestID),
 		}
 
 		// send response to client
@@ -126,7 +153,7 @@ func getStatusURI(reqID uuid.UUID) string {
 // ********** ********** ********** ********** ********** **********
 
 // getQueueHandler returns the handler func for GET /queue
-func getQueueHandler(a adding.Service) httprouter.Handle {
+func getQueueHandler() httprouter.Handle {
 	sn := cfg.ServiceName
 	// log.Printf("%s.getQueueHandler, enter/exit\n", sn)
 
@@ -137,7 +164,7 @@ func getQueueHandler(a adding.Service) httprouter.Handle {
 		// log.Printf("%s.getQueueHandler, enter\n", sn)
 
 		var err error
-		reqForStatus := adding.Request{}
+		reqForStatus := request.Request{}
 		if err = reqForStatus.ReadRequest(w, r, p, validate); err != nil {
 			log.Printf("%s.getQueueHandler, err: %v\n", sn, err)
 			// readRequest calls http.Error() on error
@@ -160,33 +187,33 @@ func getQueueHandler(a adding.Service) httprouter.Handle {
 			sn, requestedUUID)
 
 		// !!! HACK !!! - should get this from database - !!! HACK !!!
-		originalRequest := adding.Request{
+		originalRequest := request.Request{
 			RequestID:    requestedUUID,
 			CustomerID:   reqForStatus.CustomerID,
 			MediaFileURI: reqForStatus.MediaFileURI,
-			Status:       adding.Pending,
+			Status:       request.Pending,
 			AcceptedAt:   acceptedAt.Format(time.RFC3339Nano),
 		}
 
 		// handle special UUIDs used for testing
-		if requestedUUID.String() == adding.PendingUUIDStr {
-			originalRequest.RequestID = adding.PendingUUID
-			originalRequest.Status = adding.Pending
+		if requestedUUID.String() == request.PendingUUIDStr {
+			originalRequest.RequestID = request.PendingUUID
+			originalRequest.Status = request.Pending
 			originalRequest.OriginalStatus = 0
 		}
-		if requestedUUID.String() == adding.CompletedUUIDStr {
-			originalRequest.RequestID = adding.CompletedUUID
-			originalRequest.Status = adding.Completed
+		if requestedUUID.String() == request.CompletedUUIDStr {
+			originalRequest.RequestID = request.CompletedUUID
+			originalRequest.Status = request.Completed
 			originalRequest.OriginalStatus = http.StatusOK
 		}
-		if requestedUUID.String() == adding.ErrorUUIDStr {
-			originalRequest.RequestID = adding.ErrorUUID
-			originalRequest.Status = adding.Error
+		if requestedUUID.String() == request.ErrorUUIDStr {
+			originalRequest.RequestID = request.ErrorUUID
+			originalRequest.Status = request.Error
 			originalRequest.OriginalStatus = http.StatusBadRequest
 		}
 
 		// provide selected fields of Request as the HTTP response
-		response := adding.GetQueueResponse{
+		response := request.GetQueueResponse{
 			RequestID:         reqForStatus.RequestID,
 			CustomerID:        originalRequest.CustomerID,
 			MediaFileURI:      originalRequest.MediaFileURI,
@@ -195,15 +222,15 @@ func getQueueHandler(a adding.Service) httprouter.Handle {
 		}
 
 		switch originalRequest.Status {
-		case adding.Error:
+		case request.Error:
 			response.OriginalStatus = originalRequest.OriginalStatus
-		case adding.Pending:
+		case request.Pending:
 			etaTime := time.Now().UTC()
 			etaTime = etaTime.Add(time.Second * 45) // TODO: calculate multiplier based on recent processing time
 			response.ETA = etaTime.Format(time.RFC3339Nano)
-			response.OriginalStatus = originalRequest.OriginalStatus
-		case adding.Completed:
-			response.Location = getLocationURI(requestedUUID)
+			response.Endpoint = getStatusURI(originalRequest.RequestID)
+		case request.Completed:
+			response.Endpoint = getLocationURI(originalRequest.RequestID)
 			response.OriginalStatus = originalRequest.OriginalStatus
 		default:
 			log.Printf("%s.getQueueHandler, invalid originalRequest.Status: %v\n", sn, originalRequest.Status)
@@ -239,7 +266,7 @@ func getLocationURI(reqID uuid.UUID) string {
 // ********** ********** ********** ********** ********** **********
 
 // getTranscriptHandler returns the handler func for GET /queue
-func getTranscriptHandler(a adding.Service) httprouter.Handle {
+func getTranscriptHandler() httprouter.Handle {
 	sn := cfg.ServiceName
 	// log.Printf("%s.getTranscriptHandler, enter/exit\n", sn)
 
@@ -250,7 +277,7 @@ func getTranscriptHandler(a adding.Service) httprouter.Handle {
 		// log.Printf("%s.getTranscriptHandler, enter\n", sn)
 
 		var err error
-		reqForTranscript := adding.Request{}
+		reqForTranscript := request.Request{}
 		if err = reqForTranscript.ReadRequest(w, r, p, validate); err != nil {
 			log.Printf("%s.getTranscriptHandler, err: %v\n", sn, err)
 			// readRequest calls http.Error() on error
@@ -275,7 +302,7 @@ func getTranscriptHandler(a adding.Service) httprouter.Handle {
 			sn, requestedUUID)
 
 		// !!! HACK !!! - should get this from database - !!! HACK !!!
-		completedRequest := adding.Request{
+		completedRequest := request.Request{
 			RequestID:       requestedUUID,
 			CustomerID:      reqForTranscript.CustomerID,
 			MediaFileURI:    reqForTranscript.MediaFileURI,
@@ -293,7 +320,7 @@ func getTranscriptHandler(a adding.Service) httprouter.Handle {
 		}
 
 		// provide selected fields of Request as the HTTP response
-		response := adding.GetTranscriptResponse{
+		response := request.GetTranscriptResponse{
 			RequestID:    reqForTranscript.RequestID, // this request for transcript
 			CustomerID:   completedRequest.CustomerID,
 			MediaFileURI: completedRequest.MediaFileURI,

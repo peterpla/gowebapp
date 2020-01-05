@@ -18,17 +18,23 @@ import (
 	"github.com/spf13/viper"
 	speechpb "google.golang.org/genproto/googleapis/cloud/speech/v1"
 
-	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/appengine"
 	"github.com/peterpla/lead-expert/pkg/check"
 	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/database"
 	"github.com/peterpla/lead-expert/pkg/middleware"
+	"github.com/peterpla/lead-expert/pkg/queue"
+	"github.com/peterpla/lead-expert/pkg/request"
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
 var prefix = "TaskTranscriptionGCP"
 var logPrefix = "transcription-gcp.main.init(),"
 var cfg config.Config
+var repo request.RequestRepository
+var q queue.Queue
+var qi = queue.QueueInfo{}
+var qs queue.QueueService
 
 // use a single instance of Validate, it caches struct info
 var validate *validator.Validate
@@ -50,8 +56,20 @@ func init() {
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
 
+	// connect to the Request database
+	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
+
+	if cfg.IsGAE {
+		q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks for queueing
+	} else {
+		q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
+	}
+
+	qs = queue.NewService(q)
+	_ = qs
+
 	router := httprouter.New()
-	router.POST("/task_handler", taskHandler(cfg.Adder))
+	router.POST("/task_handler", taskHandler(q))
 	router.GET("/", indexHandler)
 	router.NotFound = http.HandlerFunc(myNotFound)
 	cfg.Router = router
@@ -72,7 +90,7 @@ func main() {
 }
 
 // taskHandler processes task requests.
-func taskHandler(a adding.Service) httprouter.Handle {
+func taskHandler(q queue.Queue) httprouter.Handle {
 	sn := cfg.ServiceName
 
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
@@ -82,7 +100,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		// pull task and queue names from App Engine headers
 		taskName, queueName := appengine.GetAppEngineInfo(w, r)
 
-		incomingRequest := adding.Request{}
+		incomingRequest := request.Request{}
 		if err := incomingRequest.ReadRequest(w, r, p, validate); err != nil {
 			// ReadRequest called http.Error so we just return
 			return
@@ -105,7 +123,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 
 		// log.Printf("%s.taskHandler - decoded request: %+v\n", sn, incomingRequest)
 
-		var newRequest adding.Request
+		var newRequest request.Request
 		var err error
 
 		// submit transcription request
@@ -122,8 +140,19 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			return
 		}
 
+		// write the updated Request to the Requests database
+		if err := repo.Update(&newRequest); err != nil {
+			log.Printf("%s.postHandler, repo.Update error: +%v\n", sn, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		// create task on the next pipeline stage's queue with updated Request
-		a.AddRequest(newRequest)
+		if err := q.Add(&qi, &newRequest); err != nil {
+			log.Printf("%s.taskHandler, q.Add error: +%v\n", sn, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		// send response to Cloud Tasks
 		w.WriteHeader(http.StatusOK)
@@ -161,12 +190,12 @@ func myNotFound(w http.ResponseWriter, r *http.Request) {
 // ErrBadMediaFileURI
 var ErrBadMediaFileURI = errors.New("Bad media_uri")
 
-func googleSpeechToText(req adding.Request) (adding.Request, error) {
+func googleSpeechToText(req request.Request) (request.Request, error) {
 	// sn := serviceInfo.GetServiceName()
 	// log.Printf("%s.googleSpeechToText, request: %+v\n", sn, req)
 
-	var emptyRequest = adding.Request{}
-	var badRequest adding.Request
+	var emptyRequest = request.Request{}
+	var badRequest request.Request
 	var err error
 
 	// Overall flow:
@@ -265,7 +294,7 @@ func getGoogleSTTResponse(ctx context.Context, client *speech.Client, req *speec
 }
 
 // copyAndConvertMediaFile ensures the media file is available on Google Cloud Storage
-func copyAndConvertMediaFile(req adding.Request) error {
+func copyAndConvertMediaFile(req request.Request) error {
 	sn := serviceInfo.GetServiceName()
 
 	uri := req.MediaFileURI
@@ -329,7 +358,7 @@ type Transcript struct {
 	workingTranscript string
 }
 
-func processTranscriptionResponse(req adding.Request, resp *speechpb.LongRunningRecognizeResponse) adding.Request {
+func processTranscriptionResponse(req request.Request, resp *speechpb.LongRunningRecognizeResponse) request.Request {
 	sn := serviceInfo.GetServiceName()
 	// log.Printf("%s.processTranscriptionResponse, request: %+v, LongRunningRecognizeResponse: %+v\n",
 	// 	sn, req, resp)
@@ -379,13 +408,12 @@ func processTranscriptionResponse(req adding.Request, resp *speechpb.LongRunning
 
 	// log.Printf("%s.processTranscriptionResponse, processed %d results, %d alternatives, WorkingTranscript begins: %16q, RequestID: %s\n",
 	// 	sn, r, ac, newRequest.WorkingTranscript, req.RequestID.String())
-	log.Printf("%s.processTranscriptionResponse, TODO: ==> persist transcript struct <===, RequestID: %s\n",
-		sn, req.RequestID.String())
+	_ = sn
 
 	return newRequest
 }
 
-func newTranscript(req adding.Request) Transcript {
+func newTranscript(req request.Request) Transcript {
 	var transcript = Transcript{
 		requestID:    req.RequestID,
 		mediaFileURI: req.MediaFileURI,

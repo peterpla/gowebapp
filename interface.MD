@@ -84,7 +84,7 @@ Body, JSON: *(key order is random, no ordering)*
 
   Date and time the Request was accepted (processing began), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
 
-* **"location"** (on `202 Accepted`) - string
+* **"poll_endpoint"** (on `202 Accepted`) - string
 
   Endpoint to `GET` for status of processing this request.
 
@@ -96,7 +96,7 @@ Example Response Body:
   "customer_id":  1234567,
   "media_uri":    "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0",
   "accepted_at":  "2019-12-14T16:36:47.60642Z",
-  "location": "/queues/6697be3b-bdfa-4438-9e2a-ea1511dd0e40"
+  "poll_endpoint": "/queues/6697be3b-bdfa-4438-9e2a-ea1511dd0e40"
 }
 ```
 
@@ -104,7 +104,7 @@ Example Response Body:
 
 * 202 Accepted - success
 
-  See `location` in response for endpoint to `GET` for status of processing this request.
+  See `poll_endpoint` in response for endpoint to `GET` for status of processing this request.
 
 * 400 Bad Request
 
@@ -184,7 +184,7 @@ Body, JSON: *(key order is random, no ordering)*
 
   * `"PENDING"` : the original request is still being processed. *(See `eta` below.)*
 
-  * `"COMPLETED"` : the original request has finished processing and the resulting transcript is available. *(See `location` below.)*
+  * `"COMPLETED"` : the original request has finished processing and the resulting transcript is available. *(See `transcript_endpoint` below.)*
 
   * `"ERROR"` : an error occurred during processing of the original request. *(See `original_status` below.)*
 
@@ -192,7 +192,7 @@ Body, JSON: *(key order is random, no ordering)*
 
   Estimated duration of processing remaining. Recommended waiting at least this amount of time before the next `GET /api/v1/queues` polling request. *(Experimental, this estimate may not be at all reliable.)*
 
-* **"location"** (only for `status` = `"COMPLETED"`) - string - [RFC3986](https://tools.ietf.org/html/rfc3986)
+* **"transcript_endpoint"** (only for `status` = `"COMPLETED"`) - string - [RFC3986](https://tools.ietf.org/html/rfc3986)
 
   URI to access the finished transcript.
 
@@ -209,7 +209,7 @@ Example Response Body:
   "media_uri":   "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0",
   "accepted_at": "2019-12-14T16:36:47.60642Z",
   "original_status": "COMPLETED",
-  "location":    "/transcripts/6697be3b-bdfa-4438-9e2a-ea1511dd0e40"
+  "transcript_endpoint":    "/transcripts/6697be3b-bdfa-4438-9e2a-ea1511dd0e40"
 }
 ```
 
@@ -221,7 +221,7 @@ Example Response Body:
 
 * 303 See Other - success
 
-  Use `location` to retrieve the finished transcript.
+  Use `transcript_endpoint` to retrieve the finished transcript.
 
 * 4xx Bad Request
 

@@ -14,10 +14,6 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
-
-	"github.com/peterpla/lead-expert/pkg/adding"
-	"github.com/peterpla/lead-expert/pkg/storage/memory"
-	"github.com/peterpla/lead-expert/pkg/storage/queue"
 )
 
 // GetConfig reads the configuration file from Cloud Storage and decrypts it using Cloud KMS.
@@ -62,6 +58,8 @@ func GetConfig(cfg *Config, svc string) error {
 		{structField: "EncryptedBucket", envVar: "ENCRYPTED_BUCKET"},
 		{structField: "StorageLocation", envVar: "STORAGE_LOCATION"},
 		{structField: "ConfigFile", envVar: "CONFIG_FILE"},
+		{structField: "DatabaseCustomers", envVar: "DATABASE_CUSTOMERS"},
+		{structField: "DatabaseRequests", envVar: "DATABASE_REQUESTS"},
 		{structField: "ProjectID", envVar: "PROJECT_ID"},
 		{structField: "StorageLocation", envVar: "STORAGE_LOCATION"},
 		{structField: "KmsKey", envVar: "KMS_KEY"},
@@ -206,24 +204,8 @@ func GetConfig(cfg *Config, svc string) error {
 
 	// set Config struct fields based on execution environment
 	cfg.IsGAE = false
-	cfg.StorageType = Memory
 	if os.Getenv("GAE_ENV") != "" {
 		cfg.IsGAE = true
-		cfg.StorageType = GCTQueue
-	}
-
-	switch cfg.StorageType {
-	case Memory:
-		storage := new(memory.Storage)
-		cfg.Adder = adding.NewService(storage)
-
-	case GCTQueue:
-		storage := new(queue.GCT)
-		cfg.Adder = adding.NewService(storage)
-
-	default:
-		log.Fatalf("GetConfig, unsupported cfg.StorageType: %v", cfg.StorageType)
-		panic("unsupported storageType")
 	}
 
 	// set Config struct fields based on calling service name
@@ -248,16 +230,17 @@ const (
 )
 
 type Config struct {
-	Adder           adding.Service
-	AppName         string
-	ConfigFile      string
-	Description     string
-	IsGAE           bool
-	QueueName       string
-	Router          http.Handler
-	ServiceName     string
-	NextServiceName string
-	StorageType     Type
+	AppName           string
+	ConfigFile        string
+	DatabaseCustomers string
+	DatabaseRequests  string
+	Description       string
+	IsGAE             bool
+	QueueName         string
+	Router            http.Handler
+	ServiceName       string
+	NextServiceName   string
+	StorageType       Type
 	// Key Management Service for encrypted config
 	EncryptedBucket string
 	KmsKey          string

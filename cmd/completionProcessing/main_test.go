@@ -13,9 +13,8 @@ import (
 	"github.com/go-playground/validator"
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/config"
-	"github.com/peterpla/lead-expert/pkg/storage/memory"
+	"github.com/peterpla/lead-expert/pkg/database"
 )
 
 func TestCompletionProcessing(t *testing.T) {
@@ -23,11 +22,13 @@ func TestCompletionProcessing(t *testing.T) {
 	cfg := config.GetConfigPointer()
 	servicePrefix := "completion-processing-dot-" // <---- change to match service!!
 	port := cfg.TaskCompletionProcessingPort      // <---- change to match service!!
+	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
 
 	validate = validator.New()
 
 	type test struct {
 		name     string
+		method   string
 		endpoint string
 		body     string
 		respBody string
@@ -40,14 +41,21 @@ func TestCompletionProcessing(t *testing.T) {
 	tests := []test{
 		// valid
 		{name: "valid POST /task_handler",
+			method:   "POST",
 			endpoint: "/task_handler",
 			body:     jsonBody,
 			respBody: "accepted_at",
 			status:   http.StatusOK},
-	}
-
-	storage := new(memory.Storage)
-	adder := adding.NewService(storage)
+		{name: "valid GET /",
+			method:   "GET",
+			endpoint: "/",
+			respBody: "service running",
+			status:   http.StatusOK},
+		{name: "invalid GET /nope",
+			method:   "GET",
+			endpoint: "/nope",
+			respBody: "not found",
+			status:   http.StatusNotFound}}
 
 	prefix := fmt.Sprintf("http://localhost:%s", port)
 	if cfg.IsGAE {
@@ -59,10 +67,11 @@ func TestCompletionProcessing(t *testing.T) {
 		// log.Printf("Test %s: %s", tc.name, url)
 
 		router := httprouter.New()
-		router.POST("/task_handler", taskHandler(adder))
+		router.POST("/task_handler", taskHandler())
+		router.GET("/", indexHandler)
 
 		// build the POST request with custom header
-		theRequest, err := http.NewRequest("POST", url, strings.NewReader(tc.body))
+		theRequest, err := http.NewRequest(tc.method, url, strings.NewReader(tc.body))
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -13,9 +13,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/config"
-	"github.com/peterpla/lead-expert/pkg/storage/memory"
+	"github.com/peterpla/lead-expert/pkg/database"
+	"github.com/peterpla/lead-expert/pkg/queue"
+	"github.com/peterpla/lead-expert/pkg/request"
 )
 
 // var validate *validator.Validate
@@ -25,6 +26,7 @@ func TestDefaultPost(t *testing.T) {
 	cfg := config.GetConfigPointer()
 	servicePrefix := ""
 	port := cfg.TaskDefaultPort
+	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
 
 	validate = validator.New()
 
@@ -72,8 +74,10 @@ func TestDefaultPost(t *testing.T) {
 			status:   http.StatusBadRequest},
 	}
 
-	storage := new(memory.Storage)
-	adder := adding.NewService(storage)
+	qi = queue.QueueInfo{}
+	q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
+	// q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks
+	qs = queue.NewService(q)
 
 	apiPrefix := "/api/v1"
 
@@ -87,7 +91,7 @@ func TestDefaultPost(t *testing.T) {
 		// log.Printf("Test %s: %s", tc.name, url)
 
 		router := httprouter.New()
-		router.POST("/api/v1/requests", postHandler(adder))
+		router.POST("/api/v1/requests", postHandler(q))
 
 		// build the POST request with custom header
 		theRequest, err := http.NewRequest("POST", url, strings.NewReader(tc.body))
@@ -139,29 +143,26 @@ func TestDefaultGetQueue(t *testing.T) {
 		// valid
 		{name: "GET queues COMPLETED",
 			endpoint: "/queues/",
-			uuid:     adding.CompletedUUIDStr,
+			uuid:     request.CompletedUUIDStr,
 			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
-			respBody: "location",
+			respBody: "endpoint",
 			status:   http.StatusOK,
 		},
 		{name: "GET queues PENDING",
 			endpoint: "/queues/",
-			uuid:     adding.PendingUUIDStr,
+			uuid:     request.PendingUUIDStr,
 			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
 			respBody: "eta",
 			status:   http.StatusOK,
 		},
 		{name: "GET queues ERROR",
 			endpoint: "/queues/",
-			uuid:     adding.ErrorUUIDStr,
+			uuid:     request.ErrorUUIDStr,
 			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
 			respBody: "original_status",
 			status:   http.StatusOK,
 		},
 	}
-
-	storage := new(memory.Storage)
-	adder := adding.NewService(storage)
 
 	apiPrefix := "/api/v1"
 
@@ -175,7 +176,7 @@ func TestDefaultGetQueue(t *testing.T) {
 	for _, tc := range tests {
 
 		router := httprouter.New()
-		router.GET(prefix+tc.endpoint+":uuid", getQueueHandler(adder))
+		router.GET(prefix+tc.endpoint+":uuid", getQueueHandler())
 
 		tempUUID := tc.uuid
 		if tc.uuid == "generate" {
@@ -241,9 +242,6 @@ func TestDefaultGetTranscript(t *testing.T) {
 		// TODO: test for "status_for_req" = "ERROR", "PENDING", "COMPLETE"
 	}
 
-	storage := new(memory.Storage)
-	adder := adding.NewService(storage)
-
 	apiPrefix := "/api/v1"
 
 	prefix := fmt.Sprintf("https://%s%s.appspot.com%s", servicePrefix, os.Getenv("PROJECT_ID"), apiPrefix)
@@ -256,7 +254,7 @@ func TestDefaultGetTranscript(t *testing.T) {
 	for _, tc := range tests {
 
 		router := httprouter.New()
-		router.GET(prefix+tc.endpoint+":uuid", getTranscriptHandler(adder))
+		router.GET(prefix+tc.endpoint+":uuid", getTranscriptHandler())
 
 		// build the GET request with custom header
 		url := prefix + tc.endpoint + uuid.New().String() // TODO: use a non-random UUID

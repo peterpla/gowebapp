@@ -11,16 +11,22 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
 
-	"github.com/peterpla/lead-expert/pkg/adding"
 	"github.com/peterpla/lead-expert/pkg/appengine"
 	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/database"
 	"github.com/peterpla/lead-expert/pkg/middleware"
+	"github.com/peterpla/lead-expert/pkg/queue"
+	"github.com/peterpla/lead-expert/pkg/request"
 	"github.com/peterpla/lead-expert/pkg/serviceInfo"
 )
 
 var prefix = "TaskTaggingQAComplete"
 var logPrefix = "tagging-qa-complete.main.init(),"
 var cfg config.Config
+var repo request.RequestRepository
+var q queue.Queue
+var qi = queue.QueueInfo{}
+var qs queue.QueueService
 
 // use a single instance of Validate, it caches struct info
 var validate *validator.Validate
@@ -40,8 +46,20 @@ func init() {
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
 
+	// connect to the Request database
+	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
+
+	if cfg.IsGAE {
+		q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks for queueing
+	} else {
+		q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
+	}
+
+	qs = queue.NewService(q)
+	_ = qs
+
 	router := httprouter.New()
-	router.POST("/task_handler", taskHandler(cfg.Adder))
+	router.POST("/task_handler", taskHandler(q))
 	router.GET("/", indexHandler)
 	router.NotFound = http.HandlerFunc(myNotFound)
 	cfg.Router = router
@@ -62,7 +80,7 @@ func main() {
 }
 
 // taskHandler processes task requests.
-func taskHandler(a adding.Service) httprouter.Handle {
+func taskHandler(q queue.Queue) httprouter.Handle {
 	sn := cfg.ServiceName
 
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
@@ -72,7 +90,7 @@ func taskHandler(a adding.Service) httprouter.Handle {
 		// pull task and queue names from App Engine headers
 		taskName, queueName := appengine.GetAppEngineInfo(w, r)
 
-		incomingRequest := adding.Request{}
+		incomingRequest := request.Request{}
 		if err := incomingRequest.ReadRequest(w, r, p, validate); err != nil {
 			// ReadRequest called http.Error so we just return
 			return
@@ -95,8 +113,15 @@ func taskHandler(a adding.Service) httprouter.Handle {
 			return
 		}
 
+		// TODO: write updated Request to the Requests database
+		_ = repo
+
 		// create task on the next pipeline stage's queue with updated request
-		a.AddRequest(newRequest)
+		if err := q.Add(&qi, &newRequest); err != nil {
+			log.Printf("%s.taskHandler, q.Add error: +%v\n", sn, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		// send response to Cloud Tasks
 		w.WriteHeader(http.StatusOK)

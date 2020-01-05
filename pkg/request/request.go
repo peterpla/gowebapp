@@ -1,4 +1,4 @@
-package adding
+package request
 
 import (
 	"encoding/json"
@@ -39,16 +39,23 @@ var ErrInvalidTime = errors.New("Invalid time value cannot be parsed")
 // Request defines properties of an incoming transcription request
 // to be added
 type Request struct {
-	RequestID         uuid.UUID         `json:"request_id"`
-	CustomerID        int               `json:"customer_id" validate:"required,gte=1,lt=10000000"`
-	MediaFileURI      string            `json:"media_uri" validate:"required,uri"`
-	Status            string            `json:"status"`          // one of "PENDING", "ERROR", "COMPLETED"
-	OriginalStatus    int               `json:"original_status"` // as reported throughout the pipeline
-	AcceptedAt        string            `json:"accepted_at"`
-	CompletedAt       string            `json:"completed_at"`
-	WorkingTranscript string            `json:"working_transcript"`
-	FinalTranscript   string            `json:"final_transcript"`
-	Timestamps        map[string]string `json:"timestamps"`
+	RequestID         uuid.UUID         `json:"request_id" firestore:"-"` // redundant when Firestore docID = RequestID
+	CustomerID        int               `json:"customer_id" firestore:"customer_id" validate:"required,gte=1,lt=10000000"`
+	MediaFileURI      string            `json:"media_uri" firestore:"media_uri" validate:"required,uri"`
+	Status            string            `json:"status" firestore:"status"`                             // one of "PENDING", "ERROR", "COMPLETED"
+	OriginalStatus    int               `json:"original_status" firestore:"original_status,omitempty"` // as reported throughout the pipeline
+	AcceptedAt        string            `json:"accepted_at" firestore:"accepted_at"`
+	UpdatedAt         string            `json:"updated_at" firestore:"updated_at,omitempty"`
+	CompletedAt       string            `json:"completed_at" firestore:"completed_at,omitempty"`
+	WorkingTranscript string            `json:"working_transcript" firestore:"working_transcript,omitempty"`
+	FinalTranscript   string            `json:"final_transcript" firestore:"final_transcript,omitempty"`
+	Timestamps        map[string]string `json:"timestamps" firestore:"timestamps"`
+}
+
+type RequestRepository interface {
+	Create(request *Request) error
+	FindByID(reqID uuid.UUID) (*Request, error)
+	Update(request *Request) error
 }
 
 func (req *Request) ReadRequest(w http.ResponseWriter, r *http.Request, p httprouter.Params, validate *validator.Validate) error {
@@ -63,7 +70,7 @@ func (req *Request) ReadRequest(w http.ResponseWriter, r *http.Request, p httpro
 		if errors.As(err, &mr) {
 			http.Error(w, mr.msg, mr.status)
 		} else {
-			log.Println("%s.adding.ReadRequest, " + err.Error())
+			log.Println("%s.request.ReadRequest, " + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
 		return err
@@ -75,11 +82,11 @@ func (req *Request) ReadRequest(w http.ResponseWriter, r *http.Request, p httpro
 	// See https://github.com/go-playground/validator/blob/master/doc.go
 	err = validate.Struct(req)
 	if err != nil {
-		log.Printf("%s.adding.ReadRequest, validation error: %v\n", sn, err)
+		log.Printf("%s.request.ReadRequest, validation error: %v\n", sn, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
-	// log.Printf("%s.adding.ReadRequest - validated request: %+v\n", sn, newRequest)
+	// log.Printf("%s.request.ReadRequest - validated request: %+v\n", sn, newRequest)
 
 	return nil
 }
@@ -165,7 +172,7 @@ type PostResponse struct {
 	CustomerID   int       `json:"customer_id"`
 	MediaFileURI string    `json:"media_uri"`
 	AcceptedAt   string    `json:"accepted_at"`
-	Location     string    `json:"location,omitempty"`
+	PollEndpoint string    `json:"poll_endpoint,omitempty"`
 }
 
 // GetQueueResponse holds seelcted fields of Result struct to include in
@@ -177,7 +184,7 @@ type GetQueueResponse struct {
 	AcceptedAt        string    `json:"accepted_at"`
 	OriginalRequestID uuid.UUID `json:"original_request_id"`
 	ETA               string    `json:"eta,omitempty"`             // time.Time.String()
-	Location          string    `json:"location,omitempty"`        // uri
+	Endpoint          string    `json:"endpoint,omitempty"`        // uri
 	OriginalStatus    int       `json:"original_status,omitempty"` // http.Status*
 }
 
@@ -198,27 +205,27 @@ func (req *Request) AddTimestamps(startKey, startTimestamp, endKey string) (time
 	var err error
 
 	if startTime, err = time.Parse(time.RFC3339Nano, startTimestamp); err != nil {
-		log.Printf("adding.AddTimestamps ERROR: startTime %s does not parse (RFC3339Nano)\n", startTimestamp)
+		log.Printf("request.AddTimestamps ERROR: startTime %s does not parse (RFC3339Nano)\n", startTimestamp)
 		return badTime, ErrTimestampsKeyExists
 	}
 
 	// initialize map if needed
 	if req.Timestamps == nil {
-		// log.Printf("adding.AddTimestamps initializing Timestamps map in Request\n")
+		// log.Printf("request.AddTimestamps initializing Timestamps map in Request\n")
 		req.Timestamps = make(map[string]string)
 	}
 
 	// if startKey already exists, return error
 	startKeyValue, ok := req.Timestamps[startKey]
 	if ok {
-		log.Printf("adding.AddTimestamps ERROR: key %s exists with value %s\n", startKey, startKeyValue)
+		log.Printf("request.AddTimestamps ERROR: key %s exists with value %s\n", startKey, startKeyValue)
 		return badTime, ErrTimestampsKeyExists
 	}
 
 	// if endKey already exists, return error
 	endKeyValue, ok := req.Timestamps[endKey]
 	if ok {
-		log.Printf("adding.AddTimestamp ERROR: key %s exists with value %s\n", endKey, endKeyValue)
+		log.Printf("request.AddTimestamp ERROR: key %s exists with value %s\n", endKey, endKeyValue)
 		return badTime, ErrTimestampsKeyExists
 	}
 
@@ -240,15 +247,41 @@ func (req *Request) RequestDuration() (time.Duration, error) {
 
 	accepted, err = time.Parse(time.RFC3339Nano, req.AcceptedAt)
 	if err != nil {
-		log.Printf("%s.adding.RequestDuration, time.Parse error: %v from AcceptedAt: %v\n", serviceInfo.GetServiceName(), err, req.AcceptedAt)
+		log.Printf("%s.request.RequestDuration, time.Parse error: %v from AcceptedAt: %v\n", serviceInfo.GetServiceName(), err, req.AcceptedAt)
 		return badDuration, err
 	}
 	completed, _ = time.Parse(time.RFC3339Nano, req.CompletedAt)
 	if err != nil {
-		log.Printf("%s.adding.RequestDuration, time.Parse error: %v from CompletedAt: %v\n", serviceInfo.GetServiceName(), err, req.CompletedAt)
+		log.Printf("%s.request.RequestDuration, time.Parse error: %v from CompletedAt: %v\n", serviceInfo.GetServiceName(), err, req.CompletedAt)
 		return badDuration, err
 	}
 
 	return completed.Sub(accepted), nil
 
+}
+
+func (req *Request) ToMap() (map[string]interface{}, error) {
+	sn := serviceInfo.GetServiceName()
+
+	emptyMap := make(map[string]interface{})
+	newMap := make(map[string]interface{})
+
+	var reqJSON []byte
+	var err error
+
+	// TODO: more efficient Request->map conversion than JSON marshal/unmarshal
+	// first generate JSON representation of Request
+	if reqJSON, err = json.Marshal(req); err != nil {
+		log.Printf("%s.request.ToMap, json.Marshal error: %v\n", sn, err)
+		return emptyMap, err
+	}
+
+	// unmarshall the JSON into the map
+	if err := json.Unmarshal(reqJSON, &newMap); err != nil {
+		log.Printf("%s.request.ToMap, json.Unmarshal error: %v\n", sn, err)
+		return emptyMap, err
+	}
+	// log.Printf("%s.request.ToMap, returning newMap: %+v\n", sn, newMap)
+
+	return newMap, nil
 }
