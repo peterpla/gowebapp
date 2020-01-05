@@ -39,16 +39,17 @@ var ErrInvalidTime = errors.New("Invalid time value cannot be parsed")
 // Request defines properties of an incoming transcription request
 // to be added
 type Request struct {
-	RequestID         uuid.UUID         `json:"request_id"`
-	CustomerID        int               `json:"customer_id" validate:"required,gte=1,lt=10000000"`
-	MediaFileURI      string            `json:"media_uri" validate:"required,uri"`
-	Status            string            `json:"status"`          // one of "PENDING", "ERROR", "COMPLETED"
-	OriginalStatus    int               `json:"original_status"` // as reported throughout the pipeline
-	AcceptedAt        string            `json:"accepted_at"`
-	CompletedAt       string            `json:"completed_at"`
-	WorkingTranscript string            `json:"working_transcript"`
-	FinalTranscript   string            `json:"final_transcript"`
-	Timestamps        map[string]string `json:"timestamps"`
+	RequestID         uuid.UUID         `json:"request_id" firestore:"-"` // redundant when Firestore docID = RequestID
+	CustomerID        int               `json:"customer_id" firestore:"customer_id" validate:"required,gte=1,lt=10000000"`
+	MediaFileURI      string            `json:"media_uri" firestore:"media_uri" validate:"required,uri"`
+	Status            string            `json:"status" firestore:"status"`                             // one of "PENDING", "ERROR", "COMPLETED"
+	OriginalStatus    int               `json:"original_status" firestore:"original_status,omitempty"` // as reported throughout the pipeline
+	AcceptedAt        string            `json:"accepted_at" firestore:"accepted_at"`
+	UpdatedAt         string            `json:"updated_at" firestore:"updated_at,omitempty"`
+	CompletedAt       string            `json:"completed_at" firestore:"completed_at,omitempty"`
+	WorkingTranscript string            `json:"working_transcript" firestore:"working_transcript,omitempty"`
+	FinalTranscript   string            `json:"final_transcript" firestore:"final_transcript,omitempty"`
+	Timestamps        map[string]string `json:"timestamps" firestore:"timestamps"`
 }
 
 type RequestRepository interface {

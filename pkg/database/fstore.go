@@ -43,11 +43,11 @@ func (r requestRepository) Create(request *request.Request) error {
 	// TODO: lock the request while it's being written?
 
 	// get a map corresponding to the Request
-	reqMap, err := request.ToMap()
-	if err != nil {
-		log.Printf("%s.fstore.Create, ToMap err: %v\n", sn, err)
-		return err
-	}
+	// reqMap, err := request.ToMap()
+	// if err != nil {
+	// 	log.Printf("%s.fstore.Create, ToMap err: %v\n", sn, err)
+	// 	return err
+	// }
 
 	// TODO: normalize Request fields
 
@@ -69,7 +69,8 @@ func (r requestRepository) Create(request *request.Request) error {
 	docID := request.RequestID.String()
 
 	// log.Printf("%s.fstore.Create, calling Set() with reqMap: %+v\n", sn, reqMap)
-	_, err = client.Collection(col).Doc(docID).Set(ctx, reqMap)
+	// _, err = client.Collection(col).Doc(docID).Set(ctx, reqMap)
+	_, err = client.Collection(col).Doc(docID).Set(ctx, request)
 	if err != nil {
 		log.Printf("%s.fstore.Create, Set returned err %+v\n", sn, err)
 		return ErrCreateError
@@ -153,14 +154,15 @@ func (r requestRepository) Update(request *request.Request) error {
 	// TODO: lock the request while it's being written?
 
 	// get a map corresponding to the Request
-	reqMap, err := request.ToMap()
-	if err != nil {
-		log.Printf("%s.fstore.Create, ToMap err: %v\n", sn, err)
-		return err
-	}
+	// reqMap, err := request.ToMap()
+	// if err != nil {
+	// 	log.Printf("%s.fstore.Create, ToMap err: %v\n", sn, err)
+	// 	return err
+	// }
 
 	// add updated_at to reqMap with current time
-	reqMap["updated_at"] = time.Now().UTC().Format(time.RFC3339Nano)
+	// reqMap["updated_at"] = time.Now().UTC().Format(time.RFC3339Nano)
+	request.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	// log.Printf("reqMap: %+v\n", reqMap)
 
 	// prepare to talk to Firestore
@@ -184,7 +186,8 @@ func (r requestRepository) Update(request *request.Request) error {
 
 	// use "set with merge" (i.e., with MergeAll SetOption) - provided
 	// fields overwrite corresponding fields in the existing document
-	_, err = docRef.Set(ctx, reqMap, firestore.MergeAll)
+	// _, err = docRef.Set(ctx, reqMap, firestore.MergeAll)
+	_, err = docRef.Set(ctx, request, firestore.MergeAll)
 	if err != nil {
 		// "Set creates or overwrites the document with the given data."
 		// I.e., Not Found is not a concern
