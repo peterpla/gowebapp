@@ -48,8 +48,8 @@ func init() {
 func main() {
 	// log.Printf("Enter default.main\n")
 
-	// TODO: load collection from configuration (env var)
-	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, "leadexperts-users")
+	// connect to the Request database
+	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
 
 	if cfg.IsGAE {
 		q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks for queueing
@@ -109,6 +109,13 @@ func postHandler(q queue.Queue) httprouter.Handle {
 			return
 		}
 
+		// write the Request to the Requests database
+		if err := repo.Create(&newRequest); err != nil {
+			log.Printf("%s.postHandler, repo.Create error: +%v\n", sn, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		// create task on the next pipeline stage's queue with request
 		if err := q.Add(&qi, &newRequest); err != nil {
 			log.Printf("%s.postHandler, q.Add error: +%v\n", sn, err)
@@ -116,13 +123,6 @@ func postHandler(q queue.Queue) httprouter.Handle {
 			return
 		}
 		returnedReq := newRequest // TODO: collapse newRequest and returnedReq into one
-
-		if err := repo.Create(&returnedReq); err != nil {
-			log.Printf("%s.postHandler, repo.Create error: +%v\n", sn, err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-
-		}
 
 		// provide selected fields of Request as the HTTP response
 		response := request.PostResponse{

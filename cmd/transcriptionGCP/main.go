@@ -21,6 +21,7 @@ import (
 	"github.com/peterpla/lead-expert/pkg/appengine"
 	"github.com/peterpla/lead-expert/pkg/check"
 	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/database"
 	"github.com/peterpla/lead-expert/pkg/middleware"
 	"github.com/peterpla/lead-expert/pkg/queue"
 	"github.com/peterpla/lead-expert/pkg/request"
@@ -30,6 +31,7 @@ import (
 var prefix = "TaskTranscriptionGCP"
 var logPrefix = "transcription-gcp.main.init(),"
 var cfg config.Config
+var repo request.RequestRepository
 var q queue.Queue
 var qi = queue.QueueInfo{}
 var qs queue.QueueService
@@ -53,6 +55,9 @@ func init() {
 
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
+
+	// connect to the Request database
+	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
 
 	if cfg.IsGAE {
 		q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks for queueing
@@ -131,6 +136,13 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 		// add timestamps and get duration
 		var duration time.Duration
 		if duration, err = newRequest.AddTimestamps("BeginTranscriptionGCP", startTime, "EndTranscriptionGCP"); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// write the updated Request to the Requests database
+		if err := repo.Update(&newRequest); err != nil {
+			log.Printf("%s.postHandler, repo.Update error: +%v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -396,8 +408,7 @@ func processTranscriptionResponse(req request.Request, resp *speechpb.LongRunnin
 
 	// log.Printf("%s.processTranscriptionResponse, processed %d results, %d alternatives, WorkingTranscript begins: %16q, RequestID: %s\n",
 	// 	sn, r, ac, newRequest.WorkingTranscript, req.RequestID.String())
-	log.Printf("%s.processTranscriptionResponse, TODO: ==> persist transcript struct <===, RequestID: %s\n",
-		sn, req.RequestID.String())
+	_ = sn
 
 	return newRequest
 }

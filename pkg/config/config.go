@@ -58,6 +58,8 @@ func GetConfig(cfg *Config, svc string) error {
 		{structField: "EncryptedBucket", envVar: "ENCRYPTED_BUCKET"},
 		{structField: "StorageLocation", envVar: "STORAGE_LOCATION"},
 		{structField: "ConfigFile", envVar: "CONFIG_FILE"},
+		{structField: "DatabaseCustomers", envVar: "DATABASE_CUSTOMERS"},
+		{structField: "DatabaseRequests", envVar: "DATABASE_REQUESTS"},
 		{structField: "ProjectID", envVar: "PROJECT_ID"},
 		{structField: "StorageLocation", envVar: "STORAGE_LOCATION"},
 		{structField: "KmsKey", envVar: "KMS_KEY"},
@@ -228,15 +230,17 @@ const (
 )
 
 type Config struct {
-	AppName         string
-	ConfigFile      string
-	Description     string
-	IsGAE           bool
-	QueueName       string
-	Router          http.Handler
-	ServiceName     string
-	NextServiceName string
-	StorageType     Type
+	AppName           string
+	ConfigFile        string
+	DatabaseCustomers string
+	DatabaseRequests  string
+	Description       string
+	IsGAE             bool
+	QueueName         string
+	Router            http.Handler
+	ServiceName       string
+	NextServiceName   string
+	StorageType       Type
 	// Key Management Service for encrypted config
 	EncryptedBucket string
 	KmsKey          string

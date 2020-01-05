@@ -14,6 +14,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 
 	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/database"
 	"github.com/peterpla/lead-expert/pkg/queue"
 )
 
@@ -22,6 +23,7 @@ func TestTaggingQA(t *testing.T) {
 	cfg := config.GetConfigPointer()
 	servicePrefix := "tagging-qa-dot-" // <---- change to match service!!
 	port := cfg.TaskTaggingQAPort      // <---- change to match service!!
+	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
 
 	validate = validator.New()
 

@@ -15,6 +15,7 @@ import (
 
 	"github.com/peterpla/lead-expert/pkg/appengine"
 	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/database"
 	"github.com/peterpla/lead-expert/pkg/middleware"
 	"github.com/peterpla/lead-expert/pkg/queue"
 	"github.com/peterpla/lead-expert/pkg/request"
@@ -24,6 +25,7 @@ import (
 var prefix = "TaskCompletionProcessing"
 var initLogPrefix = "completion-processing.main.init(),"
 var cfg config.Config
+var repo request.RequestRepository
 var q queue.Queue
 var qi = queue.QueueInfo{}
 var qs queue.QueueService
@@ -45,6 +47,9 @@ func init() {
 
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
+
+	// connect to the Request database
+	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
 
 	if cfg.IsGAE {
 		q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks for queueing
@@ -93,22 +98,23 @@ func taskHandler() httprouter.Handle {
 			return
 		}
 
-		// TODO: establish what constitutes "completion processing"
+		// TODO: implement whatever constitutes "completion processing"
 
 		// replace | with \n in WorkingTranscript
 		incomingRequest.FinalTranscript = strings.Replace(incomingRequest.WorkingTranscript, "|", "\n", -1)
 
-		// TODO: communicate status to the client.
-		// For detailed discussions of how to return status to the client upon completion of a long-running request, see:
-		// - "REST and long-running jobs", https://farazdagi.com/2014/rest-and-long-running-jobs/
-		// - "Long running REST API with queues", https://stackoverflow.com/a/33011965/10649045 .
+		// write completed Request to the Requests database
+		if err := repo.Update(&incomingRequest); err != nil {
+			log.Printf("%s.postHandler, repo.Update error: +%v\n", sn, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+
+		}
 
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.
 		// For example, http.Error(w, "Internal Server Error: Task Processing", http.StatusInternalServerError)
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
-
-		// !!! HACK !!! write the response to the client as if responding to the original POST request
 
 		// populate a CompletionResponse struct for the HTTP response, with
 		// selected fields of Request

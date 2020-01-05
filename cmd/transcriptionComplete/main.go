@@ -13,6 +13,7 @@ import (
 
 	"github.com/peterpla/lead-expert/pkg/appengine"
 	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/database"
 	"github.com/peterpla/lead-expert/pkg/middleware"
 	"github.com/peterpla/lead-expert/pkg/queue"
 	"github.com/peterpla/lead-expert/pkg/request"
@@ -22,6 +23,7 @@ import (
 var prefix = "TaskTranscriptionComplete"
 var logPrefix = "transcription-complete.main.init(),"
 var cfg config.Config
+var repo request.RequestRepository
 var q queue.Queue
 var qi = queue.QueueInfo{}
 
@@ -44,6 +46,9 @@ func init() {
 
 func main() {
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
+
+	// connect to the Request database
+	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
 
 	if cfg.IsGAE {
 		q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks for queueing
@@ -105,6 +110,9 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		// TODO: write updated Request to the Requests database
+		_ = repo
 
 		// create task on the next pipeline stage's queue with updated request
 		if err := q.Add(&qi, &newRequest); err != nil {

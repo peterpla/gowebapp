@@ -15,6 +15,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 
 	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/database"
 	"github.com/peterpla/lead-expert/pkg/queue"
 )
 
@@ -23,6 +24,7 @@ func TestTranscriptQAComplete(t *testing.T) {
 	cfg := config.GetConfigPointer()
 	servicePrefix := "transcript-qa-complete-dot-" // <---- change to match service!!
 	port := cfg.TaskTranscriptQACompletePort       // <---- change to match service!!
+	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
 
 	validate = validator.New()
 

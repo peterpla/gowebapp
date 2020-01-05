@@ -14,6 +14,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 
 	"github.com/peterpla/lead-expert/pkg/config"
+	"github.com/peterpla/lead-expert/pkg/database"
 )
 
 func TestCompletionProcessing(t *testing.T) {
@@ -21,6 +22,7 @@ func TestCompletionProcessing(t *testing.T) {
 	cfg := config.GetConfigPointer()
 	servicePrefix := "completion-processing-dot-" // <---- change to match service!!
 	port := cfg.TaskCompletionProcessingPort      // <---- change to match service!!
+	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
 
 	validate = validator.New()
 
