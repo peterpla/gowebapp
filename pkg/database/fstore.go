@@ -51,6 +51,13 @@ func (r requestRepository) Create(request *request.Request) error {
 
 	// TODO: normalize Request fields
 
+	// block creation of zero UUID requests
+	zeroUUID := uuid.UUID{}
+	if request.RequestID == zeroUUID {
+		log.Printf("%s.fstore.Create, zero UUID not allowed\n", sn)
+		return ErrZeroUUIDError
+	}
+
 	// prepare to talk to Firestore
 	// log.Printf("%s.fstore.Create, repo.ProjectID: %s, repo.Collection: %s\n", sn, r.ProjectID, r.Collection)
 	ctx := context.Background()
@@ -100,28 +107,33 @@ func (r requestRepository) FindByID(reqID uuid.UUID) (*request.Request, error) {
 
 	var emptyRequest = request.Request{}
 	var foundRequest request.Request
-	foundReqMap := make(map[string]interface{})
+
+	zeroUUID := uuid.UUID{}
+	if reqID == zeroUUID {
+		log.Printf("%s.fstore.FindByID, zero UUID not allowed\n", sn)
+		return &emptyRequest, ErrZeroUUIDError
+	}
 
 	// prepare to talk to Firestore
-	// log.Printf("%s.firestore.FindByID, repo.ProjectID: %s, repo.Collection: %s\n", repo.ProjectID, repo.Collection)
+	// log.Printf("%s.fstore.FindByID, repo.ProjectID: %s, repo.Collection: %s\n", repo.ProjectID, repo.Collection)
 	ctx := context.Background()
 	projID := r.ProjectID
-	// log.Printf("%s.firestore.FindByID, projID: %s\n", projID)
+	// log.Printf("%s.fstore.FindByID, projID: %s\n", projID)
 	client, err := firestore.NewClient(ctx, projID)
 	if err != nil {
-		log.Printf("%s.firestore.FindByID, failed to create client: %v\n", sn, err)
+		log.Printf("%s.fstore.FindByID, failed to create client: %v\n", sn, err)
 		return &emptyRequest, ErrFindError
 	}
 	defer client.Close()
 	// log.Printf("firestore client: %+v\n", client)
 
 	col := client.Collection(r.Collection)
-	// log.Printf("%s.firestore.FindByID, col: %+v\n", col)
+	// log.Printf("%s.fstore.FindByID, col: %+v\n", col)
 
 	// search by UUID
 	docID := reqID.String()
 	docRef := col.Doc(docID)
-	// log.Printf("%s.firestore.FindByID, docRef: %+v", docRef)
+	// log.Printf("%s.fstore.FindByID, docRef: %+v", docRef)
 
 	// read the user back from the database
 	docsnap, err := docRef.Get(ctx)
@@ -129,20 +141,24 @@ func (r requestRepository) FindByID(reqID uuid.UUID) (*request.Request, error) {
 		st, _ := status.FromError(err)
 		if st.Code() == codes.NotFound {
 			// UUID not found
-			log.Printf("%s.firestore.FindByID, doc with UUID=%q not found\n", sn, docID)
-			return &emptyRequest, ErrFindError
+			log.Printf("%s.fstore.FindByID, doc with UUID=%q not found\n", sn, docID)
+			return &emptyRequest, ErrNotFoundError
 		}
 		// some other error, return it
-		log.Printf("%s.firestore.FindByID, Get returned err: %+v\n", sn, err)
+		log.Printf("%s.fstore.FindByID, Get returned err: %+v\n", sn, err)
 		return &emptyRequest, ErrFindError
 	}
 
 	// extract data into the temporary map
 	if err := docsnap.DataTo(&foundRequest); err != nil {
-		log.Printf("%s.firestore.FindByID, DataTo returned err: %+v", sn, err)
+		log.Printf("%s.fstore.FindByID, DataTo returned err: %+v", sn, err)
 		return &emptyRequest, ErrFindError
 	}
-	log.Printf("%s.firestore.FindByID, foundRequest: %+v\n", sn, foundReqMap)
+
+	// save the UUID in RequestID as expected elsewhere
+	foundRequest.RequestID = reqID
+
+	// log.Printf("%s.fstore.FindByID, foundRequest: %+v\n", sn, foundRequest)
 
 	return &foundRequest, nil
 }
@@ -153,16 +169,22 @@ func (r requestRepository) Update(request *request.Request) error {
 
 	// TODO: lock the request while it's being written?
 
-	// get a map corresponding to the Request
-	// reqMap, err := request.ToMap()
-	// if err != nil {
-	// 	log.Printf("%s.fstore.Create, ToMap err: %v\n", sn, err)
-	// 	return err
-	// }
+	// block update of zero UUID requests
+	zeroUUID := uuid.UUID{}
+	if request.RequestID == zeroUUID {
+		log.Printf("%s.fstore.Update, zero UUID not allowed\n", sn)
+		return ErrZeroUUIDError
+	}
 
-	// add updated_at to reqMap with current time
-	// reqMap["updated_at"] = time.Now().UTC().Format(time.RFC3339Nano)
-	request.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	// to use MergeAll we must provide a map, so get a map corresponding to the Request
+	reqMap, err := request.ToMap()
+	if err != nil {
+		log.Printf("%s.fstore.Create, ToMap err: %v\n", sn, err)
+		return err
+	}
+
+	// request.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	reqMap["updated_at"] = time.Now().UTC().Format(time.RFC3339Nano)
 	// log.Printf("reqMap: %+v\n", reqMap)
 
 	// prepare to talk to Firestore
@@ -186,8 +208,7 @@ func (r requestRepository) Update(request *request.Request) error {
 
 	// use "set with merge" (i.e., with MergeAll SetOption) - provided
 	// fields overwrite corresponding fields in the existing document
-	// _, err = docRef.Set(ctx, reqMap, firestore.MergeAll)
-	_, err = docRef.Set(ctx, request, firestore.MergeAll)
+	_, err = docRef.Set(ctx, reqMap, firestore.MergeAll)
 	if err != nil {
 		// "Set creates or overwrites the document with the given data."
 		// I.e., Not Found is not a concern
@@ -196,25 +217,27 @@ func (r requestRepository) Update(request *request.Request) error {
 	}
 
 	// read back the complete, updated document
-	docsnap, err := docRef.Get(ctx)
-	if err != nil {
-		log.Printf("%s.fstore.Update, docRef.Get returned err: %+v\n", sn, err)
-		return ErrUpdateError
-	}
+	// docsnap, err := docRef.Get(ctx)
+	// if err != nil {
+	// 	log.Printf("%s.fstore.Update, docRef.Get returned err: %+v\n", sn, err)
+	// 	return ErrUpdateError
+	// }
 	// log.Printf("after Set, Get docsnap: %+v\n", docsnap)
 
 	// extract data into temp map
-	var tmpMap = make(map[string]interface{})
-	if err := docsnap.DataTo(&tmpMap); err != nil {
-		log.Printf("%s.fstore.Update, DataTo returned err: %+v\n", sn, err)
-		return ErrUpdateError
-	}
+	// var tmpMap = make(map[string]interface{})
+	// if err := docsnap.DataTo(&tmpMap); err != nil {
+	// 	log.Printf("%s.fstore.Update, DataTo returned err: %+v\n", sn, err)
+	// 	return ErrUpdateError
+	// }
 
-	log.Printf("%s.fstore.Update, updated request: +%v\n", sn, request)
+	// log.Printf("%s.fstore.Update, updated request: +%v\n", sn, request)
 
 	return nil
 }
 
 var ErrCreateError = fmt.Errorf("fstore Create error")
+var ErrZeroUUIDError = fmt.Errorf("fstore zero UUID error")
 var ErrUpdateError = fmt.Errorf("fstore Update error")
+var ErrNotFoundError = fmt.Errorf("fstore Not Found error")
 var ErrFindError = fmt.Errorf("fstore Find error")
