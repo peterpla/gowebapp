@@ -99,7 +99,7 @@ func (r requestRepository) Create(req *request.Request) error {
 	// 	return ErrCreateError
 	// }
 
-	// log.Printf("%s.fstore.Create, req: +%v\n", sn, *req)
+	log.Printf("%s.fstore.Create, req: +%v\n", sn, *req)
 
 	return nil
 }
@@ -129,13 +129,13 @@ func (r requestRepository) FindByID(reqID uuid.UUID) (*request.Request, error) {
 	defer client.Close()
 	// log.Printf("firestore client: %+v\n", client)
 
-	col := client.Collection(r.Collection)
-	// log.Printf("%s.fstore.FindByID, col: %+v\n", col)
-
 	// search by UUID
 	docID := reqID.String()
-	docRef := col.Doc(docID)
-	// log.Printf("%s.fstore.FindByID, docRef: %+v", docRef)
+	col := r.Collection
+	colRef := client.Collection(col)
+	docRef := colRef.Doc(docID)
+	// log.Printf("%s.fstore.FindByID, calling Get() with client: %+v,\n... col: %+v, colRef: %+v,\n... docID: %+v, docRef: %+v\n",
+	// 	sn, client, col, colRef, docID, docRef)
 
 	// read the user back from the database
 	docsnap, err := docRef.Get(ctx)
@@ -161,7 +161,7 @@ func (r requestRepository) FindByID(reqID uuid.UUID) (*request.Request, error) {
 	// save the UUID in RequestID as expected elsewhere
 	foundRequest.RequestID = reqID
 
-	// log.Printf("%s.fstore.FindByID, foundRequest: %+v\n", sn, foundRequest)
+	log.Printf("%s.fstore.FindByID, foundRequest: %+v\n", sn, foundRequest)
 
 	return &foundRequest, nil
 }
@@ -202,12 +202,12 @@ func (r requestRepository) Update(req *request.Request) error {
 	defer client.Close()
 	// log.Printf("firestore client: %+v\n", client)
 
-	// request UUID = document ID, we'll search by the UUID later
 	docID := req.RequestID.String()
-
-	col := client.Collection(r.Collection)
-	docRef := col.Doc(docID)
-	// log.Printf("%s.fstore.Update, docRef: %+v\n", sn, docRef)
+	col := r.Collection
+	colRef := client.Collection(col)
+	docRef := colRef.Doc(docID)
+	// log.Printf("%s.fstore.Update, calling Set() with MergeAll, client: %+v,\n... col: %+v, colRef: %+v,\n... docID: %+v, docRef: %+v\n... reqMap: %+v\n",
+	// 	sn, client, col, colRef, docID, docRef, reqMap)
 
 	// use "set with merge" (i.e., with MergeAll SetOption) - provided
 	// fields overwrite corresponding fields in the existing document
@@ -234,7 +234,7 @@ func (r requestRepository) Update(req *request.Request) error {
 	// 	return ErrUpdateError
 	// }
 
-	// log.Printf("%s.fstore.Update, updated request: +%v\n", sn, req)
+	log.Printf("%s.fstore.Update, updated request: +%v\n", sn, req)
 
 	return nil
 }

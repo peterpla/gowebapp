@@ -115,7 +115,7 @@ func postHandler(q queue.Queue) httprouter.Handle {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		newRequest.CreatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+		// newRequest.CreatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 
 		// create task on the next pipeline stage's queue with request
 		if err := q.Add(&qi, &newRequest); err != nil {
