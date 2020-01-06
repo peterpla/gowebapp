@@ -58,8 +58,6 @@ func GetConfig(cfg *Config, svc string) error {
 		{structField: "EncryptedBucket", envVar: "ENCRYPTED_BUCKET"},
 		{structField: "StorageLocation", envVar: "STORAGE_LOCATION"},
 		{structField: "ConfigFile", envVar: "CONFIG_FILE"},
-		{structField: "DatabaseCustomers", envVar: "DATABASE_CUSTOMERS"},
-		{structField: "DatabaseRequests", envVar: "DATABASE_REQUESTS"},
 		{structField: "ProjectID", envVar: "PROJECT_ID"},
 		{structField: "StorageLocation", envVar: "STORAGE_LOCATION"},
 		{structField: "KmsKey", envVar: "KMS_KEY"},
@@ -200,6 +198,8 @@ func GetConfig(cfg *Config, svc string) error {
 	// set Config struct fields read from encrypted config file
 	cfg.AppName = viper.GetString("AppName")
 	cfg.Description = viper.GetString("Description")
+	cfg.DatabaseRequests = viper.GetString("DatabaseRequests")
+	cfg.DatabaseCustomers = viper.GetString("DatabaseCustomers")
 	cfg.Version = viper.GetString("Version")
 
 	// set Config struct fields based on execution environment

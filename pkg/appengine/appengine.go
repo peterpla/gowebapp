@@ -8,7 +8,7 @@ import (
 )
 
 func GetAppEngineInfo(w http.ResponseWriter, r *http.Request) (taskName, queueName string) {
-	sn := serviceInfo.GetNextServiceName()
+	sn := serviceInfo.GetServiceName()
 	// var taskName string
 	t, ok := r.Header["X-Appengine-Taskname"]
 	if !ok || len(t[0]) == 0 {

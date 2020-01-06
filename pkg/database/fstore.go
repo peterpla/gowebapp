@@ -22,7 +22,7 @@ type requestRepository struct {
 }
 
 func NewFirestoreRequestRepository(projID string, coll string) request.RequestRepository {
-	sn := serviceInfo.GetNextServiceName()
+	sn := serviceInfo.GetServiceName()
 	// log.Printf("%s.fstore.NewFirestoreRequestRepository, projID: %q, coll: %q\n",
 	// 	sn, projID, coll)
 
@@ -37,13 +37,14 @@ func NewFirestoreRequestRepository(projID string, coll string) request.RequestRe
 }
 
 // Create writes the Request to the database
-func (r requestRepository) Create(request *request.Request) error {
-	sn := serviceInfo.GetNextServiceName()
+func (r requestRepository) Create(req *request.Request) error {
+	sn := serviceInfo.GetServiceName()
+	// log.Printf("%s.fstore.Create, repo: %+v, req: %+v\n", sn, r, *req)
 
 	// TODO: lock the request while it's being written?
 
 	// get a map corresponding to the Request
-	// reqMap, err := request.ToMap()
+	// reqMap, err := req.ToMap()
 	// if err != nil {
 	// 	log.Printf("%s.fstore.Create, ToMap err: %v\n", sn, err)
 	// 	return err
@@ -53,13 +54,12 @@ func (r requestRepository) Create(request *request.Request) error {
 
 	// block creation of zero UUID requests
 	zeroUUID := uuid.UUID{}
-	if request.RequestID == zeroUUID {
+	if req.RequestID == zeroUUID {
 		log.Printf("%s.fstore.Create, zero UUID not allowed\n", sn)
 		return ErrZeroUUIDError
 	}
 
 	// prepare to talk to Firestore
-	// log.Printf("%s.fstore.Create, repo.ProjectID: %s, repo.Collection: %s\n", sn, r.ProjectID, r.Collection)
 	ctx := context.Background()
 	projID := r.ProjectID
 	client, err := firestore.NewClient(ctx, projID)
@@ -69,44 +69,46 @@ func (r requestRepository) Create(request *request.Request) error {
 	}
 	defer client.Close()
 
+	docID := req.RequestID.String() // request UUID = document ID, we'll search by the UUID later
 	col := r.Collection
-	// log.Printf("%s.fstore.Create, client: %+v, colRef: %+v\n", sn, client, col)
+	colRef := client.Collection(col)
+	docRef := colRef.Doc(docID)
+	// log.Printf("%s.fstore.Create, calling Set() with client: %+v, col: %+v, colRef: %+v, docID: %+v, docRef: %+v, reqMap: %+v\n",
+	// 	sn, client, col, colRef, docID, docRef, reqMap)
+	// log.Printf("%s.fstore.Create, calling Set() with client: %+v,\n... col: %+v, colRef: %+v,\n... docID: %+v, docRef: %+v,\n... req: %+v\n",
+	// 	sn, client, col, colRef, docID, docRef, *req)
+	req.CreatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 
-	// request UUID = document ID, we'll search by the UUID later
-	docID := request.RequestID.String()
-
-	// log.Printf("%s.fstore.Create, calling Set() with reqMap: %+v\n", sn, reqMap)
-	// _, err = client.Collection(col).Doc(docID).Set(ctx, reqMap)
-	_, err = client.Collection(col).Doc(docID).Set(ctx, request)
+	// _, err = docRef.Set(ctx, reqMap)
+	_, err = docRef.Set(ctx, *req)
 	if err != nil {
 		log.Printf("%s.fstore.Create, Set returned err %+v\n", sn, err)
 		return ErrCreateError
 	}
-	docRef := client.Collection(col).Doc(docID)
 
 	// read the Request back from the database, and return it
-	docsnap, err := docRef.Get(ctx)
-	if err != nil {
-		log.Printf("%s.fstore.Create, Get returned err: %+v\n", sn, err)
-		return ErrCreateError
-	}
+	// docsnap, err := docRef.Get(ctx)
+	// if err != nil {
+	// 	log.Printf("%s.fstore.Create, Get returned err: %+v\n", sn, err)
+	// 	return ErrCreateError
+	// }
+	//
+	// tmpReq := request.Request{}
+	// if err := docsnap.DataTo(&tmpReq); err != nil {
+	// 	log.Printf("%s.fstore.Create, DataTo returned err: %+v", sn, err)
+	// 	return ErrCreateError
+	// }
 
-	createdRequest := make(map[string]interface{})
-	if err := docsnap.DataTo(&createdRequest); err != nil {
-		log.Printf("%s.fstore.Create, DataTo returned err: %+v", sn, err)
-		return ErrCreateError
-	}
-	// log.Printf("%s.fstore.Create, createdRequest: +%v\n", sn, createdRequest)
+	// log.Printf("%s.fstore.Create, req: +%v\n", sn, *req)
 
 	return nil
 }
 
 func (r requestRepository) FindByID(reqID uuid.UUID) (*request.Request, error) {
-	sn := serviceInfo.GetNextServiceName()
+	sn := serviceInfo.GetServiceName()
 	// See Exercise as example: https://github.com/peterpla/exercise/blob/master/backend/
 
 	var emptyRequest = request.Request{}
-	var foundRequest request.Request
 
 	zeroUUID := uuid.UUID{}
 	if reqID == zeroUUID {
@@ -121,7 +123,7 @@ func (r requestRepository) FindByID(reqID uuid.UUID) (*request.Request, error) {
 	// log.Printf("%s.fstore.FindByID, projID: %s\n", projID)
 	client, err := firestore.NewClient(ctx, projID)
 	if err != nil {
-		log.Printf("%s.fstore.FindByID, failed to create client: %v\n", sn, err)
+		log.Printf("%s.fstore.FindByID, NewClient returned err: %v\n", sn, err)
 		return &emptyRequest, ErrFindError
 	}
 	defer client.Close()
@@ -141,7 +143,7 @@ func (r requestRepository) FindByID(reqID uuid.UUID) (*request.Request, error) {
 		st, _ := status.FromError(err)
 		if st.Code() == codes.NotFound {
 			// UUID not found
-			log.Printf("%s.fstore.FindByID, doc with UUID=%q not found\n", sn, docID)
+			log.Printf("%s.fstore.FindByID, docID %q not found\n", sn, docID)
 			return &emptyRequest, ErrNotFoundError
 		}
 		// some other error, return it
@@ -149,7 +151,8 @@ func (r requestRepository) FindByID(reqID uuid.UUID) (*request.Request, error) {
 		return &emptyRequest, ErrFindError
 	}
 
-	// extract data into the temporary map
+	// extract data into the Request we'll return
+	var foundRequest request.Request
 	if err := docsnap.DataTo(&foundRequest); err != nil {
 		log.Printf("%s.fstore.FindByID, DataTo returned err: %+v", sn, err)
 		return &emptyRequest, ErrFindError
@@ -164,26 +167,26 @@ func (r requestRepository) FindByID(reqID uuid.UUID) (*request.Request, error) {
 }
 
 // Update writes an updated Request to the database
-func (r requestRepository) Update(request *request.Request) error {
-	sn := serviceInfo.GetNextServiceName()
+func (r requestRepository) Update(req *request.Request) error {
+	sn := serviceInfo.GetServiceName()
 
 	// TODO: lock the request while it's being written?
 
 	// block update of zero UUID requests
 	zeroUUID := uuid.UUID{}
-	if request.RequestID == zeroUUID {
+	if req.RequestID == zeroUUID {
 		log.Printf("%s.fstore.Update, zero UUID not allowed\n", sn)
 		return ErrZeroUUIDError
 	}
 
 	// to use MergeAll we must provide a map, so get a map corresponding to the Request
-	reqMap, err := request.ToMap()
+	reqMap, err := req.ToMap()
 	if err != nil {
 		log.Printf("%s.fstore.Create, ToMap err: %v\n", sn, err)
 		return err
 	}
 
-	// request.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	// req.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	reqMap["updated_at"] = time.Now().UTC().Format(time.RFC3339Nano)
 	// log.Printf("reqMap: %+v\n", reqMap)
 
@@ -193,14 +196,14 @@ func (r requestRepository) Update(request *request.Request) error {
 	projID := r.ProjectID
 	client, err := firestore.NewClient(ctx, projID)
 	if err != nil {
-		log.Printf("%s.fstore.Update, failed to create client: %v\n", sn, err)
+		log.Printf("%s.fstore.Update, NewClient returned err: %v\n", sn, err)
 		return ErrUpdateError
 	}
 	defer client.Close()
 	// log.Printf("firestore client: %+v\n", client)
 
 	// request UUID = document ID, we'll search by the UUID later
-	docID := request.RequestID.String()
+	docID := req.RequestID.String()
 
 	col := client.Collection(r.Collection)
 	docRef := col.Doc(docID)
@@ -231,7 +234,7 @@ func (r requestRepository) Update(request *request.Request) error {
 	// 	return ErrUpdateError
 	// }
 
-	// log.Printf("%s.fstore.Update, updated request: +%v\n", sn, request)
+	// log.Printf("%s.fstore.Update, updated request: +%v\n", sn, req)
 
 	return nil
 }

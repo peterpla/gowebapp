@@ -79,18 +79,18 @@ func main() {
 	validate = validator.New()
 
 	log.Printf("Service %s listening on port %s, requests will be added to queue %s",
-		cfg.ServiceName, port, cfg.QueueName)
+		serviceInfo.GetServiceName(), port, cfg.QueueName)
 	log.Fatal(http.ListenAndServe(":"+port, middleware.LogReqResp(router)))
 }
 
 // postHandler returns the handler func for POST /requests
 func postHandler(q queue.Queue) httprouter.Handle {
 	var err error
-	sn := cfg.ServiceName
+	sn := serviceInfo.GetServiceName()
 
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		startTime := time.Now().UTC()
-		// log.Printf("%s.main.postHandler, enter\n", sn)
+		// log.Printf("%s.main.postHandler, enter, repo: %+v\n", sn, repo)
 
 		newRequest := request.Request{}
 		if err = newRequest.ReadRequest(w, r, p, validate); err != nil {
@@ -115,6 +115,7 @@ func postHandler(q queue.Queue) httprouter.Handle {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		newRequest.CreatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 
 		// create task on the next pipeline stage's queue with request
 		if err := q.Add(&qi, &newRequest); err != nil {
@@ -154,7 +155,7 @@ func getStatusURI(reqID uuid.UUID) string {
 
 // getQueueHandler returns the handler func for GET /queue
 func getQueueHandler() httprouter.Handle {
-	sn := cfg.ServiceName
+	sn := serviceInfo.GetServiceName()
 	// log.Printf("%s.getQueueHandler, enter/exit\n", sn)
 
 	// var err error
@@ -267,7 +268,7 @@ func getLocationURI(reqID uuid.UUID) string {
 
 // getTranscriptHandler returns the handler func for GET /queue
 func getTranscriptHandler() httprouter.Handle {
-	sn := cfg.ServiceName
+	sn := serviceInfo.GetServiceName()
 	// log.Printf("%s.getTranscriptHandler, enter/exit\n", sn)
 
 	// var err error
@@ -347,7 +348,7 @@ func getTranscriptHandler() httprouter.Handle {
 
 // indexHandler serves as a health check, responding "service running"
 func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	sn := cfg.ServiceName
+	sn := serviceInfo.GetServiceName()
 	// log.Printf("Enter %s.indexHandler\n", sn)
 	if r.URL.Path != "/" {
 		log.Printf("%s.indexHandler, r.URL.Path: %s, will respond NotFound\n", sn, r.URL.Path)
@@ -361,8 +362,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 // ********** ********** ********** ********** ********** **********
 
 func myNotFound(w http.ResponseWriter, r *http.Request) {
-	// sn := cfg.ServiceName
-	// log.Printf("%s.myNotFound, request for %s not routed\n", sn, r.URL.Path)
+	sn := serviceInfo.GetServiceName()
+	log.Printf("%s.myNotFound, request for %s not routed\n", sn, r.URL.Path)
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)

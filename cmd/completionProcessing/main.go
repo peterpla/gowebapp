@@ -77,13 +77,13 @@ func main() {
 	validate = validator.New()
 
 	log.Printf("Service %s listening on port %s, requests will be added to queue %s",
-		cfg.ServiceName, port, cfg.QueueName)
+		serviceInfo.GetServiceName(), port, cfg.QueueName)
 	log.Fatal(http.ListenAndServe(":"+port, middleware.LogReqResp(router)))
 }
 
 // handler for Cloud Tasks POSTs
 func taskHandler() httprouter.Handle {
-	sn := cfg.ServiceName
+	sn := serviceInfo.GetServiceName()
 
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		// log.Printf("%s.taskHandler, request: %+v, params: %+v\n", sn, r, p)
@@ -152,7 +152,7 @@ func taskHandler() httprouter.Handle {
 
 // indexHandler serves as a health check, responding "service running"
 func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	sn := cfg.ServiceName
+	sn := serviceInfo.GetServiceName()
 	// log.Printf("Enter %s.indexHandler\n", sn)
 	if r.URL.Path != "/" {
 		// log.Printf("%s.indexHandler, r.URL.Path: %s, will respond NotFound\n", sn, r.URL.Path)

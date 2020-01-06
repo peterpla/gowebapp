@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go v0.50.0
 	cloud.google.com/go/firestore v1.1.0
 	cloud.google.com/go/storage v1.4.0
+	firebase.google.com/go v3.11.1+incompatible // indirect
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-playground/validator v9.31.0+incompatible
 	github.com/golang/gddo v0.0.0-20191216155521-fbfc0f5e7810

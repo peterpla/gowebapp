@@ -45,6 +45,7 @@ type Request struct {
 	Status            string            `json:"status" firestore:"status"`                             // one of "PENDING", "ERROR", "COMPLETED"
 	OriginalStatus    int               `json:"original_status" firestore:"original_status,omitempty"` // as reported throughout the pipeline
 	AcceptedAt        string            `json:"accepted_at" firestore:"accepted_at"`
+	CreatedAt         string            `json:"created_at" firestore:"created_at,omitempty"`
 	UpdatedAt         string            `json:"updated_at" firestore:"updated_at,omitempty"`
 	CompletedAt       string            `json:"completed_at" firestore:"completed_at,omitempty"`
 	WorkingTranscript string            `json:"working_transcript" firestore:"working_transcript,omitempty"`
