@@ -33,30 +33,19 @@
 
 ``` text
 cmd (things you start)
-|__data
-|  |__main.go (add sample data, etc.)
 |__server
    |__main.go (HTTP server, minimal routing, request handler, etc.)
-|__[for each service (pipeline stage)]
+|__[each service (pipeline stage)]
    |__main.go (HTTP server, /task_handler, etc.)
 pkg
-|__adding (enqueue)
-|__completing
+|__appengine
+|__check
 |__config (process configuration inputs)
-|__delivering
-|__dequeue
-|__enqueue
-|__http
-|__listing
+|__database
 |__middleware
-|__removing (dequeue)
-|__reviewing
-|__server (==obsolete==)
+|__queue
+|__request
 |__serviceInfo
-|__storage (persistence)
-|__submitting
-|__tagging
-|__[value objects - `struct`s]
 ```
 
 ## GAE Service Implementation
