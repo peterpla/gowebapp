@@ -99,7 +99,7 @@ func (r requestRepository) Create(req *request.Request) error {
 	// 	return ErrCreateError
 	// }
 
-	log.Printf("%s.fstore.Create, req: +%v\n", sn, *req)
+	// log.Printf("%s.fstore.Create, req: %+v\n", sn, *req)
 
 	return nil
 }
@@ -137,7 +137,7 @@ func (r requestRepository) FindByID(reqID uuid.UUID) (*request.Request, error) {
 	// log.Printf("%s.fstore.FindByID, calling Get() with client: %+v,\n... col: %+v, colRef: %+v,\n... docID: %+v, docRef: %+v\n",
 	// 	sn, client, col, colRef, docID, docRef)
 
-	// read the user back from the database
+	// read the Request from the database
 	docsnap, err := docRef.Get(ctx)
 	if err != nil {
 		st, _ := status.FromError(err)
@@ -161,7 +161,7 @@ func (r requestRepository) FindByID(reqID uuid.UUID) (*request.Request, error) {
 	// save the UUID in RequestID as expected elsewhere
 	foundRequest.RequestID = reqID
 
-	log.Printf("%s.fstore.FindByID, foundRequest: %+v\n", sn, foundRequest)
+	// log.Printf("%s.fstore.FindByID, foundRequest: %+v\n", sn, foundRequest)
 
 	return &foundRequest, nil
 }
@@ -234,7 +234,7 @@ func (r requestRepository) Update(req *request.Request) error {
 	// 	return ErrUpdateError
 	// }
 
-	log.Printf("%s.fstore.Update, updated request: +%v\n", sn, req)
+	log.Printf("%s.fstore.Update, updated request: %+v\n", sn, req)
 
 	return nil
 }

@@ -48,6 +48,8 @@ func init() {
 func main() {
 	// log.Printf("Enter default.main\n")
 
+	defer catch()
+
 	// connect to the Request database
 	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
 
@@ -62,8 +64,8 @@ func main() {
 
 	router := httprouter.New()
 	router.POST(apiPrefix+"/requests", postHandler(q))
-	router.GET(apiPrefix+"/queues/:uuid", getQueueHandler())
-	router.GET(apiPrefix+"/transcripts/:uuid", getTranscriptHandler())
+	router.GET(apiPrefix+"/status/:uuid", getStatusHandler())
+	router.GET(apiPrefix+"/transcripts/:uuid", getTranscriptsHandler())
 	router.GET("/", indexHandler)
 	router.NotFound = http.HandlerFunc(myNotFound)
 	cfg.Router = router
@@ -81,6 +83,15 @@ func main() {
 	log.Printf("Service %s listening on port %s, requests will be added to queue %s",
 		serviceInfo.GetServiceName(), port, cfg.QueueName)
 	log.Fatal(http.ListenAndServe(":"+port, middleware.LogReqResp(router)))
+}
+
+// catch recover() and log it
+func catch() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Fatalf("=====> RECOVER in %s.main.catch, recover() returned: %v\n", serviceInfo.GetServiceName(), r)
+		}
+	}()
 }
 
 // postHandler returns the handler func for POST /requests
@@ -111,7 +122,7 @@ func postHandler(q queue.Queue) httprouter.Handle {
 
 		// write the Request to the Requests database
 		if err := repo.Create(&newRequest); err != nil {
-			log.Printf("%s.postHandler, repo.Create error: +%v\n", sn, err)
+			log.Printf("%s.postHandler, repo.Create error: %+v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -119,18 +130,17 @@ func postHandler(q queue.Queue) httprouter.Handle {
 
 		// create task on the next pipeline stage's queue with request
 		if err := q.Add(&qi, &newRequest); err != nil {
-			log.Printf("%s.postHandler, q.Add error: +%v\n", sn, err)
+			log.Printf("%s.postHandler, q.Add error: %+v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		returnedReq := newRequest // TODO: collapse newRequest and returnedReq into one
 
 		// provide selected fields of Request as the HTTP response
 		response := request.PostResponse{
-			RequestID:    returnedReq.RequestID,
-			CustomerID:   returnedReq.CustomerID,
-			MediaFileURI: returnedReq.MediaFileURI,
-			AcceptedAt:   returnedReq.AcceptedAt,
+			RequestID:    newRequest.RequestID,
+			CustomerID:   newRequest.CustomerID,
+			MediaFileURI: newRequest.MediaFileURI,
+			AcceptedAt:   newRequest.AcceptedAt,
 			PollEndpoint: getStatusURI(newRequest.RequestID),
 		}
 
@@ -138,7 +148,7 @@ func postHandler(q queue.Queue) httprouter.Handle {
 		w.WriteHeader(http.StatusAccepted)
 		w.Header().Set("Content-Type", "application/json")
 		if err = json.NewEncoder(w).Encode(response); err != nil {
-			log.Printf("%s.postHandler, json.NewEncoder.Encode error: +%v\n", sn, err)
+			log.Printf("%s.postHandler, json.NewEncoder.Encode error: %+v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -153,88 +163,107 @@ func getStatusURI(reqID uuid.UUID) string {
 
 // ********** ********** ********** ********** ********** **********
 
-// getQueueHandler returns the handler func for GET /queue
-func getQueueHandler() httprouter.Handle {
+// getStatusHandler returns the handler func for GET /queue
+func getStatusHandler() httprouter.Handle {
 	sn := serviceInfo.GetServiceName()
-	// log.Printf("%s.getQueueHandler, enter/exit\n", sn)
+	log.Printf("%s.getStatusHandler, enter/exit\n", sn)
 
 	// var err error
 
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		startTime := time.Now().UTC()
-		// log.Printf("%s.getQueueHandler, enter\n", sn)
+		log.Printf("%s.main.getStatusHandler, enter, repo: %+v\n", sn, repo)
 
 		var err error
 		reqForStatus := request.Request{}
 		if err = reqForStatus.ReadRequest(w, r, p, validate); err != nil {
-			log.Printf("%s.getQueueHandler, err: %v\n", sn, err)
+			log.Printf("%s.getStatusHandler, err: %v\n", sn, err)
 			// readRequest calls http.Error() on error
 			return
 		}
-		reqForStatus.RequestID = uuid.New()
-		reqForStatus.AcceptedAt = time.Now().UTC().Format(time.RFC3339Nano)
 
+		// validate the requested UUID
 		var requestedUUID uuid.UUID
 		paramUUID := p.ByName("uuid")
 		if requestedUUID, err = uuid.Parse(paramUUID); err != nil {
-			log.Printf("%s.getQueueHandler, bad UUID err: %v\n", sn, err)
+			log.Printf("%s.getStatusHandler, bad UUID err: %v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		// !!! HACK !!! - fake a response, since we don't have the database running - !!! HACK !!!
-		acceptedAt := startTime.Add(time.Second * -1)
-		log.Printf("%s.getQueueHandler, =====> PLACEHOLDER <===== query database for status of %s\n",
-			sn, requestedUUID)
-
-		// !!! HACK !!! - should get this from database - !!! HACK !!!
-		originalRequest := request.Request{
-			RequestID:    requestedUUID,
-			CustomerID:   reqForStatus.CustomerID,
-			MediaFileURI: reqForStatus.MediaFileURI,
-			Status:       request.Pending,
-			AcceptedAt:   acceptedAt.Format(time.RFC3339Nano),
+		var zeroUUID uuid.UUID
+		if requestedUUID == zeroUUID {
+			log.Printf("%s.getStatusHandler, zero UUID\n", sn)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 
-		// handle special UUIDs used for testing
-		if requestedUUID.String() == request.PendingUUIDStr {
+		reqForStatus.RequestID = uuid.New()
+		reqForStatus.AcceptedAt = time.Now().UTC().Format(time.RFC3339Nano)
+
+		var originalRequest request.Request
+		var returnedReq *request.Request
+
+		// for special testing UUIDs, hardwire responses
+		switch requestedUUID.String() {
+		//
+		case request.PendingUUIDStr:
 			originalRequest.RequestID = request.PendingUUID
 			originalRequest.Status = request.Pending
-			originalRequest.OriginalStatus = 0
-		}
-		if requestedUUID.String() == request.CompletedUUIDStr {
+
+		case request.CompletedUUIDStr:
 			originalRequest.RequestID = request.CompletedUUID
 			originalRequest.Status = request.Completed
 			originalRequest.OriginalStatus = http.StatusOK
-		}
-		if requestedUUID.String() == request.ErrorUUIDStr {
+
+		case request.ErrorUUIDStr:
 			originalRequest.RequestID = request.ErrorUUID
 			originalRequest.Status = request.Error
 			originalRequest.OriginalStatus = http.StatusBadRequest
+
+		default:
+			// not a special case, find the requested UUID in the database
+			returnedReq, err = repo.FindByID(requestedUUID)
+			if err == database.ErrNotFoundError {
+				log.Printf("%s.getStatusHandler, UUID not found: %q\n", sn, requestedUUID.String())
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			if err != nil {
+				log.Printf("%s.getStatusHandler, repo.FindByID error: %+v\n", sn, err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			originalRequest = *returnedReq
 		}
 
+		// TODO: validate the same CustomerID is asking for status of the same MediaFileURI, reqForStatus vs. originalRequest
+
+		reqForStatus.CompletedAt = time.Now().UTC().Format(time.RFC3339Nano)
+
 		// provide selected fields of Request as the HTTP response
-		response := request.GetQueueResponse{
+		response := request.GetStatusResponse{
 			RequestID:         reqForStatus.RequestID,
 			CustomerID:        originalRequest.CustomerID,
 			MediaFileURI:      originalRequest.MediaFileURI,
 			AcceptedAt:        originalRequest.AcceptedAt,
 			OriginalRequestID: originalRequest.RequestID,
+			CompletedAt:       reqForStatus.CompletedAt,
 		}
 
 		switch originalRequest.Status {
 		case request.Error:
 			response.OriginalStatus = originalRequest.OriginalStatus
+			response.OriginalCompletedAt = originalRequest.CompletedAt
 		case request.Pending:
-			etaTime := time.Now().UTC()
-			etaTime = etaTime.Add(time.Second * 45) // TODO: calculate multiplier based on recent processing time
-			response.ETA = etaTime.Format(time.RFC3339Nano)
+			response.ETA = getETA().Format(time.RFC3339Nano)
 			response.Endpoint = getStatusURI(originalRequest.RequestID)
 		case request.Completed:
 			response.Endpoint = getLocationURI(originalRequest.RequestID)
 			response.OriginalStatus = originalRequest.OriginalStatus
+			response.OriginalCompletedAt = originalRequest.CompletedAt
 		default:
-			log.Printf("%s.getQueueHandler, invalid originalRequest.Status: %v\n", sn, originalRequest.Status)
+			log.Printf("%s.getStatusHandler, invalid originalRequest.Status: %v\n", sn, originalRequest.Status)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -250,13 +279,20 @@ func getQueueHandler() httprouter.Handle {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 		if err = json.NewEncoder(w).Encode(response); err != nil {
-			log.Printf("%s.postHandler, json.NewEncoder.Encode error: +%v\n", sn, err)
+			log.Printf("%s.postHandler, json.NewEncoder.Encode error: %+v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		log.Printf("%s.getQueueHandler, completed in %v, response: %+v\n", sn, duration, response)
+		log.Printf("%s.getStatusHandler, completed in %v, response: %+v\n", sn, duration, response)
 	}
+}
+
+func getETA() time.Time {
+	// TODO: calculate multiplier based on recent processing time
+	etaTime := time.Now().UTC()
+	etaTime = etaTime.Add(time.Second * 45) // blindly guess 45 seconds from now
+	return etaTime
 }
 
 func getLocationURI(reqID uuid.UUID) string {
@@ -266,21 +302,21 @@ func getLocationURI(reqID uuid.UUID) string {
 
 // ********** ********** ********** ********** ********** **********
 
-// getTranscriptHandler returns the handler func for GET /queue
-func getTranscriptHandler() httprouter.Handle {
+// getTranscriptsHandler returns the handler func for GET /queue
+func getTranscriptsHandler() httprouter.Handle {
 	sn := serviceInfo.GetServiceName()
-	// log.Printf("%s.getTranscriptHandler, enter/exit\n", sn)
+	// log.Printf("%s.getTranscriptsHandler, enter/exit\n", sn)
 
 	// var err error
 
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		startTime := time.Now().UTC()
-		// log.Printf("%s.getTranscriptHandler, enter\n", sn)
+		// log.Printf("%s.getTranscriptsHandler, enter\n", sn)
 
 		var err error
 		reqForTranscript := request.Request{}
 		if err = reqForTranscript.ReadRequest(w, r, p, validate); err != nil {
-			log.Printf("%s.getTranscriptHandler, err: %v\n", sn, err)
+			log.Printf("%s.getTranscriptsHandler, err: %v\n", sn, err)
 			// readRequest calls http.Error() on error
 			return
 		}
@@ -290,28 +326,33 @@ func getTranscriptHandler() httprouter.Handle {
 		var requestedUUID uuid.UUID
 		paramUUID := p.ByName("uuid")
 		if requestedUUID, err = uuid.Parse(paramUUID); err != nil {
-			log.Printf("%s.getTranscriptHandler, bad UUID err: %v\n", sn, err)
+			log.Printf("%s.getTranscriptsHandler, bad UUID err: %v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		// !!! HACK !!! - fake a response, since we don't have the database running - !!! HACK !!!
-		acceptedAt := startTime.Add(time.Second * -47)
-		completedAt := startTime.Add(time.Second * -2)
-		completedAt = completedAt.Add(time.Millisecond * -37521)
-		log.Printf("%s.getTranscriptHandler, =====> PLACEHOLDER <===== query database for status of %s\n",
-			sn, requestedUUID)
-
-		// !!! HACK !!! - should get this from database - !!! HACK !!!
-		completedRequest := request.Request{
-			RequestID:       requestedUUID,
-			CustomerID:      reqForTranscript.CustomerID,
-			MediaFileURI:    reqForTranscript.MediaFileURI,
-			Status:          "COMPLETED",
-			AcceptedAt:      acceptedAt.Format(time.RFC3339Nano),
-			CompletedAt:     completedAt.Format(time.RFC3339Nano),
-			FinalTranscript: "[Speaker 1] Thank you for calling Park flooring.\n[Speaker 2] Hi, my name is Yuri.\n",
+		var requestPointer *request.Request
+		requestPointer, err = repo.FindByID(requestedUUID)
+		if err == database.ErrNotFoundError {
+			log.Printf("%s.getTranscriptsHandler, UUID not found: %q\n", sn, requestedUUID.String())
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
 		}
+		if err != nil {
+			log.Printf("%s.getTranscriptsHandler, repo.FindByID error: %+v\n", sn, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if requestPointer.Status != request.Completed {
+			log.Printf("%s.getTranscriptsHandler, Status not COMPLETED: %q\n", sn, requestPointer.Status)
+			w.WriteHeader(http.StatusSeeOther)
+			// TODO: implement See Other response with Location: /status/:uuid - client needs to poll until Completed
+			return
+		}
+
+		returnedRequest := *requestPointer
+
+		// TODO: validate the same CustomerID is asking for status of the same MediaFileURI, reqForStatus vs. originalRequest
 
 		// add timestamps and get duration
 		var duration time.Duration
@@ -322,25 +363,27 @@ func getTranscriptHandler() httprouter.Handle {
 
 		// provide selected fields of Request as the HTTP response
 		response := request.GetTranscriptResponse{
-			RequestID:    reqForTranscript.RequestID, // this request for transcript
-			CustomerID:   completedRequest.CustomerID,
-			MediaFileURI: completedRequest.MediaFileURI,
-			AcceptedAt:   completedRequest.AcceptedAt,
-			CompletedAt:  completedRequest.CompletedAt,
-			CompletedID:  completedRequest.RequestID, // the request that produced the transcript
-			Transcript:   completedRequest.FinalTranscript,
+			RequestID:           reqForTranscript.RequestID, // this request for transcript
+			CustomerID:          returnedRequest.CustomerID,
+			MediaFileURI:        returnedRequest.MediaFileURI,
+			AcceptedAt:          returnedRequest.AcceptedAt,
+			CompletedAt:         returnedRequest.CompletedAt,
+			OriginalRequestID:   returnedRequest.RequestID, // the request that produced the transcript
+			OriginalAcceptedAt:  returnedRequest.AcceptedAt,
+			OriginalCompletedAt: returnedRequest.CompletedAt,
+			Transcript:          returnedRequest.FinalTranscript,
 		}
 
 		// send response to client
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 		if err = json.NewEncoder(w).Encode(response); err != nil {
-			log.Printf("%s.getTranscriptHandler, json.NewEncoder.Encode error: +%v\n", sn, err)
+			log.Printf("%s.getTranscriptsHandler, json.NewEncoder.Encode error: %+v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		log.Printf("%s.getTranscriptHandler, completed in %v, response: %+v\n", sn, duration, response)
+		log.Printf("%s.getTranscriptsHandler, completed in %v, response: %+v\n", sn, duration, response)
 	}
 }
 

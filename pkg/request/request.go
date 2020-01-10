@@ -176,27 +176,34 @@ type PostResponse struct {
 	PollEndpoint string    `json:"poll_endpoint,omitempty"`
 }
 
-// GetQueueResponse holds seelcted fields of Result struct to include in
-// HTTP response to GET /queue/{uuid} request
-type GetQueueResponse struct {
-	RequestID         uuid.UUID `json:"request_id"`
-	CustomerID        int       `json:"customer_id"`
-	MediaFileURI      string    `json:"media_uri"`
-	AcceptedAt        string    `json:"accepted_at"`
-	OriginalRequestID uuid.UUID `json:"original_request_id"`
-	ETA               string    `json:"eta,omitempty"`             // time.Time.String()
-	Endpoint          string    `json:"endpoint,omitempty"`        // uri
-	OriginalStatus    int       `json:"original_status,omitempty"` // http.Status*
+// GetStatusResponse holds selected fields of Result struct to include in
+// HTTP response to GET /status/:uuid request
+type GetStatusResponse struct {
+	RequestID           uuid.UUID `json:"request_id"`
+	CustomerID          int       `json:"customer_id"`
+	MediaFileURI        string    `json:"media_uri"`
+	AcceptedAt          string    `json:"accepted_at"`
+	CompletedAt         string    `json:"completed_at,omitempty"`
+	OriginalRequestID   uuid.UUID `json:"original_request_id"`
+	OriginalAcceptedAt  string    `json:"original_accepted_at,omitempty"`
+	OriginalCompletedAt string    `json:"original_completed_at,omitempty"`
+	ETA                 string    `json:"eta,omitempty"`             // time.Time.String()
+	Endpoint            string    `json:"endpoint,omitempty"`        // uri
+	OriginalStatus      int       `json:"original_status,omitempty"` // http.Status*
 }
 
+// GetTranscriptResponse holds selected fields of Result struct to include in
+// HTTP response to GET /transcript/:uuid request
 type GetTranscriptResponse struct {
-	RequestID    uuid.UUID `json:"request_id"`
-	CustomerID   int       `json:"customer_id" validate:"required,gte=1,lt=10000000"`
-	MediaFileURI string    `json:"media_uri"`
-	AcceptedAt   string    `json:"accepted_at"`
-	CompletedAt  string    `json:"completed_at"`
-	CompletedID  uuid.UUID `json:"completed_id"`
-	Transcript   string    `json:"transcript"`
+	RequestID           uuid.UUID `json:"request_id"`
+	CustomerID          int       `json:"customer_id" validate:"required,gte=1,lt=10000000"`
+	MediaFileURI        string    `json:"media_uri"`
+	AcceptedAt          string    `json:"accepted_at"`
+	CompletedAt         string    `json:"completed_at"`
+	OriginalRequestID   uuid.UUID `json:"original_request_id"`
+	OriginalAcceptedAt  string    `json:"original_accepted_at,omitempty"`
+	OriginalCompletedAt string    `json:"original_completed_at,omitempty"`
+	Transcript          string    `json:"transcript"`
 }
 
 func (req *Request) AddTimestamps(startKey, startTimestamp, endKey string) (time.Duration, error) {

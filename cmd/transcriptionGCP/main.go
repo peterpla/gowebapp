@@ -142,14 +142,14 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 
 		// write the updated Request to the Requests database
 		if err := repo.Update(&newRequest); err != nil {
-			log.Printf("%s.postHandler, repo.Update error: +%v\n", sn, err)
+			log.Printf("%s.postHandler, repo.Update error: %+v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		// create task on the next pipeline stage's queue with updated Request
 		if err := q.Add(&qi, &newRequest); err != nil {
-			log.Printf("%s.taskHandler, q.Add error: +%v\n", sn, err)
+			log.Printf("%s.taskHandler, q.Add error: %+v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

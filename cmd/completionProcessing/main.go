@@ -102,13 +102,21 @@ func taskHandler() httprouter.Handle {
 
 		// replace | with \n in WorkingTranscript
 		incomingRequest.FinalTranscript = strings.Replace(incomingRequest.WorkingTranscript, "|", "\n", -1)
+		incomingRequest.Status = request.Completed
+		incomingRequest.CompletedAt = time.Now().UTC().Format(time.RFC3339Nano)
+
+		// add timestamps and get duration
+		_, err := incomingRequest.AddTimestamps("BeginCompletionProcessing", startTime.Format(time.RFC3339Nano), "EndCompletionProcessing")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		// write completed Request to the Requests database
 		if err := repo.Update(&incomingRequest); err != nil {
-			log.Printf("%s.postHandler, repo.Update error: +%v\n", sn, err)
+			log.Printf("%s.postHandler, repo.Update error: %+v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
-
 		}
 
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.
@@ -118,7 +126,6 @@ func taskHandler() httprouter.Handle {
 
 		// populate a CompletionResponse struct for the HTTP response, with
 		// selected fields of Request
-		incomingRequest.CompletedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		response := request.GetTranscriptResponse{
 			RequestID:    incomingRequest.RequestID,
 			CustomerID:   incomingRequest.CustomerID,
@@ -129,7 +136,7 @@ func taskHandler() httprouter.Handle {
 		}
 
 		if err := json.NewEncoder(w).Encode(response); err != nil {
-			log.Printf("%s.postHandler, json.NewEncoder.Encode error: +%v\n", sn, err)
+			log.Printf("%s.postHandler, json.NewEncoder.Encode error: %+v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
