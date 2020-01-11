@@ -69,9 +69,10 @@ func (req *Request) ReadRequest(w http.ResponseWriter, r *http.Request, p httpro
 	if err != nil {
 		var mr *malformedRequest
 		if errors.As(err, &mr) {
+			log.Printf("%s.request.ReadRequest, err: %v\n", sn, err.Error())
 			http.Error(w, mr.msg, mr.status)
 		} else {
-			log.Println("%s.request.ReadRequest, " + err.Error())
+			log.Printf("%s.request.ReadRequest, err: %v\n", sn, err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
 		return err
@@ -84,7 +85,7 @@ func (req *Request) ReadRequest(w http.ResponseWriter, r *http.Request, p httpro
 	err = validate.Struct(req)
 	if err != nil {
 		log.Printf("%s.request.ReadRequest, validation error: %v\n", sn, err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		// http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
 	// log.Printf("%s.request.ReadRequest - validated request: %+v\n", sn, newRequest)
@@ -173,7 +174,7 @@ type PostResponse struct {
 	CustomerID   int       `json:"customer_id"`
 	MediaFileURI string    `json:"media_uri"`
 	AcceptedAt   string    `json:"accepted_at"`
-	PollEndpoint string    `json:"poll_endpoint,omitempty"`
+	Endpoint     string    `json:"endpoint,omitempty"` // uri
 }
 
 // GetStatusResponse holds selected fields of Result struct to include in
