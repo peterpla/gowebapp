@@ -51,7 +51,7 @@ func main() {
 	sn := serviceInfo.GetServiceName()
 	// log.Printf("Enter default.main\n")
 
-	defer catch()
+	defer catch() // implements recover so panics reported
 
 	// connect to the Request database
 	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
@@ -109,6 +109,8 @@ func catch() {
 		}
 	}()
 }
+
+// ********** ********** ********** ********** ********** **********
 
 // postHandler returns the handler func for POST /requests
 func postHandler(q queue.Queue) httprouter.Handle {
@@ -187,120 +189,108 @@ func getStatusHandler() httprouter.Handle {
 	// var err error
 
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		// HACK: startTime := time.Now().UTC()
-		log.Printf("%s.main.getStatusHandler, enter, repo: %+v, request: %+v\n", sn, repo, r)
+		startTime := time.Now().UTC()
+		// log.Printf("%s.main.getStatusHandler, enter, repo: %+v, request: %+v\n", sn, repo, r)
 
-		/*
-			var err error
-			reqForStatus := request.Request{}
-			if err = reqForStatus.ReadRequest(w, r, p, validate); err != nil {
-				log.Printf("%s.getStatusHandler, err: %v\n", sn, err)
-				// readRequest calls http.Error() on error
+		var err error
+		reqForStatus := request.Request{}
+		if err = reqForStatus.ReadRequest(w, r, p, validate); err != nil {
+			log.Printf("%s.getStatusHandler, err: %v\n", sn, err)
+			// readRequest calls http.Error() on error, so we're done - return
+			return
+		}
+
+		// validate the requested UUID
+		var requestedUUID uuid.UUID
+		paramUUID := p.ByName("uuid")
+		if requestedUUID, err = uuid.Parse(paramUUID); err != nil {
+			log.Printf("%s.getStatusHandler, bad UUID err: %v\n", sn, err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		var zeroUUID uuid.UUID
+		if requestedUUID == zeroUUID {
+			log.Printf("%s.getStatusHandler, zero UUID\n", sn)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		reqForStatus.RequestID = uuid.New()
+		reqForStatus.AcceptedAt = time.Now().UTC().Format(time.RFC3339Nano)
+
+		var originalRequest request.Request
+		var returnedReq *request.Request
+
+		// for special testing UUIDs, hardwire responses
+		switch requestedUUID.String() {
+		//
+		case request.PendingUUIDStr:
+			originalRequest.RequestID = request.PendingUUID
+			originalRequest.Status = request.Pending
+
+		case request.CompletedUUIDStr:
+			originalRequest.RequestID = request.CompletedUUID
+			originalRequest.Status = request.Completed
+			originalRequest.OriginalStatus = http.StatusOK
+
+		case request.ErrorUUIDStr:
+			originalRequest.RequestID = request.ErrorUUID
+			originalRequest.Status = request.Error
+			originalRequest.OriginalStatus = http.StatusBadRequest
+
+		default:
+			// not a special case, find the requested UUID in the database
+			returnedReq, err = repo.FindByID(requestedUUID)
+			if err == database.ErrNotFoundError {
+				log.Printf("%s.getStatusHandler, UUID not found: %q\n", sn, requestedUUID.String())
+				http.Error(w, err.Error(), http.StatusNotFound)
 				return
 			}
-
-			// validate the requested UUID
-			var requestedUUID uuid.UUID
-			paramUUID := p.ByName("uuid")
-			if requestedUUID, err = uuid.Parse(paramUUID); err != nil {
-				log.Printf("%s.getStatusHandler, bad UUID err: %v\n", sn, err)
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-
-			var zeroUUID uuid.UUID
-			if requestedUUID == zeroUUID {
-				log.Printf("%s.getStatusHandler, zero UUID\n", sn)
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-
-			reqForStatus.RequestID = uuid.New()
-			reqForStatus.AcceptedAt = time.Now().UTC().Format(time.RFC3339Nano)
-
-			var originalRequest request.Request
-			var returnedReq *request.Request
-
-			// for special testing UUIDs, hardwire responses
-			switch requestedUUID.String() {
-			//
-			case request.PendingUUIDStr:
-				originalRequest.RequestID = request.PendingUUID
-				originalRequest.Status = request.Pending
-
-			case request.CompletedUUIDStr:
-				originalRequest.RequestID = request.CompletedUUID
-				originalRequest.Status = request.Completed
-				originalRequest.OriginalStatus = http.StatusOK
-
-			case request.ErrorUUIDStr:
-				originalRequest.RequestID = request.ErrorUUID
-				originalRequest.Status = request.Error
-				originalRequest.OriginalStatus = http.StatusBadRequest
-
-			default:
-				// not a special case, find the requested UUID in the database
-				returnedReq, err = repo.FindByID(requestedUUID)
-				if err == database.ErrNotFoundError {
-					log.Printf("%s.getStatusHandler, UUID not found: %q\n", sn, requestedUUID.String())
-					http.Error(w, err.Error(), http.StatusNotFound)
-					return
-				}
-				if err != nil {
-					log.Printf("%s.getStatusHandler, repo.FindByID error: %+v\n", sn, err)
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
-				originalRequest = *returnedReq
-			}
-
-			// TODO: validate the same CustomerID is asking for status of the same MediaFileURI, reqForStatus vs. originalRequest
-
-			reqForStatus.CompletedAt = time.Now().UTC().Format(time.RFC3339Nano)
-
-			// provide selected fields of Request as the HTTP response
-			response := request.GetStatusResponse{
-				RequestID:         reqForStatus.RequestID,
-				CustomerID:        originalRequest.CustomerID,
-				MediaFileURI:      originalRequest.MediaFileURI,
-				AcceptedAt:        originalRequest.AcceptedAt,
-				OriginalRequestID: originalRequest.RequestID,
-				CompletedAt:       reqForStatus.CompletedAt,
-			}
-
-			switch originalRequest.Status {
-			case request.Error:
-				response.OriginalStatus = originalRequest.OriginalStatus
-				response.OriginalCompletedAt = originalRequest.CompletedAt
-			case request.Pending:
-				response.ETA = getETA().Format(time.RFC3339Nano)
-				response.Endpoint = getStatusURI(originalRequest.RequestID)
-			case request.Completed:
-				response.Endpoint = getLocationURI(originalRequest.RequestID)
-				response.OriginalStatus = originalRequest.OriginalStatus
-				response.OriginalCompletedAt = originalRequest.CompletedAt
-			default:
-				log.Printf("%s.getStatusHandler, invalid originalRequest.Status: %v\n", sn, originalRequest.Status)
+			if err != nil {
+				log.Printf("%s.getStatusHandler, repo.FindByID error: %+v\n", sn, err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+			originalRequest = *returnedReq
+		}
 
-			// add timestamps and get duration
-			var duration time.Duration
-			if duration, err = reqForStatus.AddTimestamps("BeginDefault", startTime.Format(time.RFC3339Nano), "EndDefault"); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		*/
+		// TODO: validate the same CustomerID is asking for status of the same MediaFileURI, reqForStatus vs. originalRequest
 
-		// =====> HACK: <===== temporary while track down problem
+		reqForStatus.CompletedAt = time.Now().UTC().Format(time.RFC3339Nano)
+
+		// provide selected fields of Request as the HTTP response
 		response := request.GetStatusResponse{
-			RequestID:         uuid.UUID{},
-			CustomerID:        0,
-			MediaFileURI:      "hack-hack-hack",
-			AcceptedAt:        "accepted-time",
-			OriginalRequestID: uuid.UUID{},
-			CompletedAt:       "completed-time",
+			RequestID:         reqForStatus.RequestID,
+			CustomerID:        originalRequest.CustomerID,
+			MediaFileURI:      originalRequest.MediaFileURI,
+			AcceptedAt:        originalRequest.AcceptedAt,
+			OriginalRequestID: originalRequest.RequestID,
+			CompletedAt:       reqForStatus.CompletedAt,
+		}
+
+		switch originalRequest.Status {
+		case request.Error:
+			response.OriginalStatus = originalRequest.OriginalStatus
+			response.OriginalCompletedAt = originalRequest.CompletedAt
+		case request.Pending:
+			response.ETA = getETA().Format(time.RFC3339Nano)
+			response.Endpoint = getStatusURI(originalRequest.RequestID)
+		case request.Completed:
+			response.Endpoint = getLocationURI(originalRequest.RequestID)
+			response.OriginalStatus = originalRequest.OriginalStatus
+			response.OriginalCompletedAt = originalRequest.CompletedAt
+		default:
+			log.Printf("%s.getStatusHandler, invalid originalRequest.Status: %v\n", sn, originalRequest.Status)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// add timestamps and get duration
+		var duration time.Duration
+		if duration, err = reqForStatus.AddTimestamps("BeginDefault", startTime.Format(time.RFC3339Nano), "EndDefault"); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		// send response to client
@@ -312,8 +302,7 @@ func getStatusHandler() httprouter.Handle {
 			return
 		}
 
-		// HACK: log.Printf("%s.getStatusHandler, completed in %v, response: %+v\n", sn, duration, response)
-		log.Printf("%s.getStatusHandler, response: %+v\n", sn, response)
+		log.Printf("%s.getStatusHandler, completed in %v, response: %+v\n", sn, duration, response)
 	}
 }
 

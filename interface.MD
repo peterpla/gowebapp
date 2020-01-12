@@ -62,7 +62,9 @@ Example Request Body:
 }
 ```
 
-**HACK!!!**: only Google Cloud Storage URIs in the form `gs://` are currently accepted, and the media file to be transcribed must already be present in a specific GCS bucket.
+*!!! HACK !!!*: only .MP3 files are currently accepted.
+
+*!!! HACK !!!*: media files must already be available in Google Cloud Storage URIs in a specific GCS bucket, so the `media_uri` must be in the form `gs://`.
 
 #### Outputs - POST /api/v1/requests
 

@@ -27,8 +27,7 @@ var createdUUID = uuid.UUID{}
 func TestDefaultPost(t *testing.T) {
 
 	cfg := config.GetConfigPointer()
-	servicePrefix := ""
-	port := cfg.TaskDefaultPort
+	// port := cfg.TaskDefaultPort // only used when running on localhost
 	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
 
 	validate = validator.New()
@@ -43,11 +42,11 @@ func TestDefaultPost(t *testing.T) {
 
 	tests := []test{
 		// valid
-		{name: "valid POST requests",
-			endpoint: "/requests",
-			body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
-			respBody: "accepted_at",
-			status:   http.StatusAccepted},
+		// {name: "valid POST requests",
+		// 	endpoint: "/requests",
+		// 	body:     `{ "customer_id": 1234567, "media_uri": "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3" }`,
+		// 	respBody: "accepted_at",
+		// 	status:   http.StatusAccepted},
 		// bad customer_id
 		{name: "string customer_id",
 			endpoint: "/requests",
@@ -78,16 +77,17 @@ func TestDefaultPost(t *testing.T) {
 	}
 
 	qi = queue.QueueInfo{}
-	q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
-	// q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks
+	// q = queue.NewNullQueue(&qi) // use null queue, requests thrown away on exit
+	q = queue.NewGCTQueue(&qi) // use Google Cloud Tasks
 	qs = queue.NewService(q)
 
+	// servicePrefix is something like "completion-processing-dot-"
+	// EXCEPT FOR the default service (implemented by cmd/server/main.go) when it's ""
+	servicePrefix := ""
 	apiPrefix := "/api/v1"
 
-	prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
-	if cfg.IsGAE {
-		prefix = fmt.Sprintf("https://%s%s.appspot.com%s", servicePrefix, os.Getenv("PROJECT_ID"), apiPrefix)
-	}
+	// prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
+	prefix := fmt.Sprintf("https://%s%s.appspot.com%s", servicePrefix, os.Getenv("PROJECT_ID"), apiPrefix)
 
 	for _, tc := range tests {
 		url := prefix + tc.endpoint
@@ -138,15 +138,16 @@ func TestDefaultPost(t *testing.T) {
 
 func TestDefaultGetStatus(t *testing.T) {
 
-	// skip this test if createdUUID was not set by TestDefaultPost (has zero value)
+	// prefer the UUID set by TestDefaultPost, but if it was not set (zero value), use known UUID
 	var zeroUUID = uuid.UUID{}
+	testUUID := createdUUID
 	if createdUUID == zeroUUID {
-		t.Skip("skipping as createdUUID not set.")
+		testUUID = uuid.MustParse("752b8d94-c8d8-4a92-978e-9f397153f7c7")
 	}
 
 	cfg := config.GetConfigPointer()
 	servicePrefix := ""
-	port := cfg.TaskDefaultPort
+	// port := cfg.TaskDefaultPort // only used when running on localhost
 
 	validate = validator.New()
 
@@ -157,18 +158,14 @@ func TestDefaultGetStatus(t *testing.T) {
 		MediaFileURI: "gs://elated-practice-224603.appspot.com/audio_uploads/audio-01.mp3",
 	}
 
-	prefix := fmt.Sprintf("https://%s%s.appspot.com%s", servicePrefix, os.Getenv("PROJECT_ID"), apiPrefix)
-	if !cfg.IsGAE {
-		// prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
-		prefix = apiPrefix
-		_ = port // suppress not-used warning
-	}
+	// prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
+	prefix := fmt.Sprintf("https://%s%s.appspot.com%s", servicePrefix, cfg.ProjectID, apiPrefix)
 
 	router := httprouter.New()
-	router.GET(prefix+"/status/:uuid", getStatusHandler())
+	router.GET(apiPrefix+"/status/:uuid", getStatusHandler())
 
 	// build the GET request with custom header
-	url := prefix + "/status/" + createdUUID.String()
+	url := prefix + "/status/" + testUUID.String()
 
 	body, err := json.Marshal(req)
 	if err != nil {
@@ -203,8 +200,8 @@ func TestDefaultGetStatus(t *testing.T) {
 			t.Fatalf("json.Unmarshal error: %+v", err)
 		}
 
-		if response.OriginalRequestID != createdUUID {
-			t.Errorf("RequestID mismatch, expected %q, got %q", createdUUID, response.OriginalRequestID)
+		if response.OriginalRequestID != testUUID {
+			t.Errorf("RequestID mismatch, expected %q, got %q", testUUID, response.OriginalRequestID)
 		}
 	}
 }
@@ -213,7 +210,7 @@ func TestDefaultGetStatusSpecial(t *testing.T) {
 
 	cfg := config.GetConfigPointer()
 	servicePrefix := ""
-	port := cfg.TaskDefaultPort
+	// port := cfg.TaskDefaultPort // only used when running on localhost
 
 	validate = validator.New()
 
@@ -253,17 +250,13 @@ func TestDefaultGetStatusSpecial(t *testing.T) {
 
 	apiPrefix := "/api/v1"
 
-	prefix := fmt.Sprintf("https://%s%s.appspot.com%s", servicePrefix, os.Getenv("PROJECT_ID"), apiPrefix)
-	if !cfg.IsGAE {
-		// prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
-		prefix = apiPrefix
-		_ = port // suppress not-used warning
-	}
+	// prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
+	prefix := fmt.Sprintf("https://%s%s.appspot.com%s", servicePrefix, cfg.ProjectID, apiPrefix)
 
 	for _, tc := range tests {
 
 		router := httprouter.New()
-		router.GET(prefix+tc.endpoint+":uuid", getStatusHandler())
+		router.GET(apiPrefix+tc.endpoint+":uuid", getStatusHandler())
 
 		tempUUID := tc.uuid
 		if tc.uuid == "generate" {
@@ -306,7 +299,7 @@ func TestDefaultGetTranscripts(t *testing.T) {
 
 	cfg := config.GetConfigPointer()
 	servicePrefix := ""
-	port := cfg.TaskDefaultPort
+	// port := cfg.TaskDefaultPort // only used when running on localhost
 
 	validate = validator.New()
 
@@ -331,20 +324,16 @@ func TestDefaultGetTranscripts(t *testing.T) {
 
 	apiPrefix := "/api/v1"
 
-	prefix := fmt.Sprintf("https://%s%s.appspot.com%s", servicePrefix, os.Getenv("PROJECT_ID"), apiPrefix)
-	if !cfg.IsGAE {
-		// prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
-		prefix = apiPrefix
-		_ = port // suppress not-used warning
-	}
+	// prefix := fmt.Sprintf("http://localhost:%s%s", port, apiPrefix)
+	prefix := fmt.Sprintf("https://%s%s.appspot.com%s", servicePrefix, cfg.ProjectID, apiPrefix)
 
 	for _, tc := range tests {
 
 		router := httprouter.New()
-		router.GET(prefix+tc.endpoint+":uuid", getTranscriptsHandler())
+		router.GET(apiPrefix+tc.endpoint+":uuid", getTranscriptsHandler())
 
 		// build the GET request with custom header
-		url := prefix + tc.endpoint + uuid.New().String() // TODO: use a non-random UUID
+		url := prefix + tc.endpoint + "752b8d94-c8d8-4a92-978e-9f397153f7c7" // use a known UUID
 		// log.Printf("Test %s: %s", tc.name, url)
 
 		theRequest, err := http.NewRequest("GET", url, strings.NewReader(tc.body))

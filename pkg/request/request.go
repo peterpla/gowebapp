@@ -85,7 +85,7 @@ func (req *Request) ReadRequest(w http.ResponseWriter, r *http.Request, p httpro
 	err = validate.Struct(req)
 	if err != nil {
 		log.Printf("%s.request.ReadRequest, validation error: %v\n", sn, err)
-		// http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
 	// log.Printf("%s.request.ReadRequest - validated request: %+v\n", sn, newRequest)
