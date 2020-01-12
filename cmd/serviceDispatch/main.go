@@ -79,7 +79,7 @@ func main() {
 
 	validate = validator.New()
 
-	log.Printf("Starting ervice %s listening on port %s, requests will be added to queue %s\n",
+	log.Printf("Starting service %s listening on port %s, requests will be added to queue %s\n",
 		sn, port, cfg.QueueName)
 	// run ListenAndServe in a separate go routine so main can listen for signals
 	go startListening(":"+port, middleware.LogReqResp(router))
