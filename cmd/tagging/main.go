@@ -119,24 +119,35 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 		// pull task and queue names from App Engine headers
 		taskName, queueName := appengine.GetAppEngineInfo(w, r)
 
+		var err error
 		incomingRequest := request.Request{}
-		if err := incomingRequest.ReadRequest(w, r, p, validate); err != nil {
+		if err = incomingRequest.ReadRequest(w, r, p, validate); err != nil {
 			// ReadRequest called http.Error so we just return
 			return
 		}
 
 		newRequest := incomingRequest
 
-		// TODO: implement tagging processing
-		// E.g., select which ML tagging service to use and submit that request.
+		// TODO: implement tagging processing: select the ML tagging service
+		// to use and submit that request.
 		//
-		// The current default selection is TBD
-		// so TaskTaggingWriteToQ and TaskTaggingNextSvcToHandleReq
-		// reflect "tagging" as the next stage in the pipeline.
+		// The current default selection is Google Data Loss Prevention (DLP)
+		// Classification using pre-defined (and eventually, custom) InfoType detectors.
+		// See https://cloud.google.com/dlp/docs/concepts-infotypes
+		//
+		// TODO: to select from additional services, add a tagging-dispatch servive
+
+		var tagResults taggingResults
+
+		if tagResults, err = gDLPTagging(&newRequest); err != nil {
+			log.Printf("%s.taskHandler, gDLPTagging error: %+v\n", sn, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		log.Printf("%s.taskHandler, tagResults: %+v\n", sn, tagResults)
 
 		// add timestamps and get duration
 		var duration time.Duration
-		var err error
 		if duration, err = newRequest.AddTimestamps("BeginTagging", startTime, "EndTagging"); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -146,7 +157,7 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 		_ = repo
 
 		// create task on the next pipeline stage's queue with updated request
-		if err := q.Add(&qi, &newRequest); err != nil {
+		if err = q.Add(&qi, &newRequest); err != nil {
 			log.Printf("%s.taskHandler, q.Add error: %+v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -160,6 +171,26 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 		log.Printf("%s.taskHandler completed in %v: queue %q, task %q, newRequest: %+v",
 			sn, duration, queueName, taskName, newRequest)
 	}
+}
+
+type taggingResults struct {
+	// TBD
+}
+
+func gDLPTagging(req *request.Request) (taggingResults, error) {
+	sn := serviceInfo.GetServiceName()
+	log.Printf("%s.taskHandler, req: %+v\n", sn, req)
+
+	emptyTags := taggingResults{}
+
+	// 1 - request validation: non-empty WorkingTranscript
+	// 2 - create request
+	// 3 - issue request
+	// 4 - wait for response
+	// 5 - handle error, error return
+	// 6 - handle success, success return
+
+	return emptyTags, fmt.Errorf("gDLPTagging Not Implemented")
 }
 
 // ********** ********** ********** ********** ********** **********

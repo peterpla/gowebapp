@@ -128,11 +128,8 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 		newRequest := incomingRequest
 
 		// TODO: implement tagging QA complete processing
-		// E.g., submit to completion processing.
 		//
-		// The current default selection is TBD
-		// so TaskTaggingQACompleteWriteToQ and TaskTaggingQACompleteNextSvcToHandleReq
-		// reflect "completionProcessing" as the next stage in the pipeline.
+		// The current default processing is TBD
 
 		// add timestamps and get duration
 		var duration time.Duration

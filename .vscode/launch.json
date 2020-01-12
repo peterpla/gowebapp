@@ -20,5 +20,11 @@
             "mode": "test",
             "program": "${fileDirname}"
         }
+    ],
+    "compounds": [
+        {
+            "name": "Server/Test",
+            "configurations": ["Launch","Launch test package"]
+        }
     ]
 }
