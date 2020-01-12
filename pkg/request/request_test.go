@@ -10,7 +10,9 @@ import (
 )
 
 func TestToMap(t *testing.T) {
-	earlier := time.Now().Add(time.Microsecond * -3)
+	completed := time.Now()
+	midpoint := completed.Add(time.Microsecond * -2)
+	earlier := completed.Add(time.Microsecond * -4)
 
 	tmpUUID := uuid.New()
 	request := Request{
@@ -19,6 +21,9 @@ func TestToMap(t *testing.T) {
 		MediaFileURI: "http://www.dropbox.com/test.mp3",
 		Status:       Pending,
 		AcceptedAt:   earlier.Format(time.RFC3339Nano),
+		CreatedAt:    earlier.Format(time.RFC3339Nano),
+		UpdatedAt:    midpoint.Format(time.RFC3339Nano),
+		CompletedAt:  completed.Format(time.RFC3339Nano),
 	}
 	if _, err := request.AddTimestamps("BeginTest", earlier.Format(time.RFC3339Nano), "EndTest"); err != nil {
 		t.Errorf("AddTimestamps error: %v", err)
@@ -31,6 +36,8 @@ func TestToMap(t *testing.T) {
 	expected["status"] = request.Status
 	expected["original_status"] = float64(request.OriginalStatus)
 	expected["accepted_at"] = request.AcceptedAt
+	expected["created_at"] = request.CreatedAt
+	expected["updated_at"] = request.UpdatedAt
 	expected["completed_at"] = request.CompletedAt
 	expected["working_transcript"] = request.WorkingTranscript
 	expected["final_transcript"] = request.FinalTranscript
@@ -98,6 +105,14 @@ func findMismatch(t *testing.T, expected map[string]interface{}, got map[string]
 	if expected["accepted_at"].(string) != got["accepted_at"].(string) {
 		foundMismatch = true
 		t.Errorf("AcceptedAt: expected %q, got %q", expected["accepted_at"].(string), got["accepted_at"].(string))
+	}
+	if expected["created_at"].(string) != got["created_at"].(string) {
+		foundMismatch = true
+		t.Errorf("CreatedAt: expected %q, got %q", expected["created_at"].(string), got["created_at"].(string))
+	}
+	if expected["updated_at"].(string) != got["updated_at"].(string) {
+		foundMismatch = true
+		t.Errorf("UpdatedAt: expected %q, got %q", expected["updated_at"].(string), got["updated_at"].(string))
 	}
 	if expected["completed_at"].(string) != got["completed_at"].(string) {
 		foundMismatch = true

@@ -54,17 +54,17 @@ Google App Engine services as defined in `cmd/*/app.yaml` files.
 
 ``` text
 default (./cmd/server, app startup)
-|__initial-request (./cmd/initialRequest/app.yaml, incoming requests for transcription)
+|__initial-request (./cmd/initialRequest/app.yaml, incoming HTTP requests)
 |__service-dispatch (./cmd/serviceDispatch/app.yaml, dispatch request to preferred ML service)
 |__transcription-gcp (./cmd/transcriptionGCP/app.yaml, submit to Google Speech-to-Text service)
-|__transcription-complete (./cmd/transcriptionComplete/app.yaml, completed requests from ML services)
+|__transcription-complete (./cmd/transcriptionComplete/app.yaml, post-processing of all completed transcripts)
 |__transcript-qa (./cmd/transcriptQA/app.yaml, perform QA on ML-generated transcript)
-|__transcript-qa-complete (./cmd/transcriptQAComplete/app.yaml, completed requests from QA)
+|__transcript-qa-complete (./cmd/transcriptQAComplete/app.yaml, post-processing of QA'd transcripts)
 |__tagging (./cmd/tagging/app.yaml, dispatch transcript to preferred tagging service)
-|__tagging-complete (./cmd/taggingComplete/app.yaml, completed requests from tagging)
-|__tagging-qa (./cmd/taggingQA/app.yaml, dispatch tagged transcripts for QA)
-|__tagging-qa-complete (./cmd/taggingQAComplete/app.yaml, completed requests from tagging QA)
-|__completion-processing (./cmd/completionProcessing/app.yaml, wrap up request processing)
+|__tagging-complete (./cmd/taggingComplete/app.yaml, post-processing of all completed tagging requests)
+|__tagging-qa (./cmd/taggingQA/app.yaml, dispatch tagged transcripts for preferred QA service)
+|__tagging-qa-complete (./cmd/taggingQAComplete/app.yaml, post-processing of all completed tagging QA)
+|__completion-processing (./cmd/completionProcessing/app.yaml, final processing of fully-completed requests)
 ```
 
 ## Cloud Tasks Queues
@@ -82,6 +82,18 @@ Google Cloud Tasks queues and flow: *(see Airtable, "Flooring: Transcription Pip
 1. **TaggingQA**: tasks added by `tagging-complete` service, handled by `tagging-QA` service implemented by `./cmd/taggingQA/main.go` and `/task_handler` endpoint
 1. **TaggingQAComplete**: tasks added by `tagging-qa` service, handled by `tagging-qa-complete` service implemented by `./cmd/taggingQAComplete/main.go` and `/task_handler` endpoint
 1. **CompletionProcessing**: tasks added by `tagging-qa-complete` service, handled by `completion-processing` service implemented by `./cmd/completionProcessing/main.go` and `/task_handler` endpoint
+
+## Database Activity
+
+Services that modify the database:
+
+1. `default` service Create's an initial `Request` record in the collection specified by `DatabaseRequests` in `config.yaml.enc` (encrypted); currently `leadexperts-requests`.
+2. `TranscriptionGDP` service Update's the current `Request` record in the database above, setting `WorkingTranscript` and `UpdatedAt` (and perhaps other fields).
+3. `CompletionProcessing` service Update's the current `Request` record in the database above, processing `WorkingTranscript` to customer-ready form, saving the result as `FinalTranscript`, and setting `CompletedAt` (and perhaps other fields).
+
+---
+
+## --- old information follows, of limited value ---
 
 ## Domain-Driven Design artifacts
 

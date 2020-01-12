@@ -14,7 +14,7 @@ func GetAppEngineInfo(w http.ResponseWriter, r *http.Request) (taskName, queueNa
 	if !ok || len(t[0]) == 0 {
 		// You may use the presence of the X-Appengine-Taskname header to validate
 		// the request comes from Cloud Tasks.
-		log.Printf("%s Invalid Task: No X-Appengine-Taskname request header found\n", sn)
+		log.Printf("%s.appengine.GetAppEngineInfo, X-Appengine-Taskname request header expected but not found\n", sn)
 		http.Error(w, "Bad Request - Invalid Task", http.StatusBadRequest)
 		return
 	}

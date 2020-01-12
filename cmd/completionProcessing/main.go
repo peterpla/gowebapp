@@ -6,7 +6,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-playground/validator"
@@ -46,7 +48,10 @@ func init() {
 }
 
 func main() {
+	sn := serviceInfo.GetServiceName()
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
+
+	defer catch() // implements recover so panics reported
 
 	// connect to the Request database
 	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
@@ -76,10 +81,31 @@ func main() {
 
 	validate = validator.New()
 
-	log.Printf("Service %s listening on port %s, requests will be added to queue %s",
-		serviceInfo.GetServiceName(), port, cfg.QueueName)
-	log.Fatal(http.ListenAndServe(":"+port, middleware.LogReqResp(router)))
+	// run ListenAndServe in a separate go routine so main can listen for signals
+	go startListening(":"+port, middleware.LogReqResp(router))
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	s := <-signals
+	log.Printf("\n%s.main, received signal %s, terminating", sn, s.String())
 }
+
+func startListening(addr string, handler http.Handler) {
+	if err := http.ListenAndServe(addr, handler); err != http.ErrServerClosed {
+		log.Fatalf("%s.startListening, ListenAndServe returned err: %+v\n", serviceInfo.GetServiceName(), err)
+	}
+}
+
+// catch recover() and log it
+func catch() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Fatalf("=====> RECOVER in %s.main.catch, recover() returned: %v\n", serviceInfo.GetServiceName(), r)
+		}
+	}()
+}
+
+// ********** ********** ********** ********** ********** **********
 
 // handler for Cloud Tasks POSTs
 func taskHandler() httprouter.Handle {
@@ -102,13 +128,21 @@ func taskHandler() httprouter.Handle {
 
 		// replace | with \n in WorkingTranscript
 		incomingRequest.FinalTranscript = strings.Replace(incomingRequest.WorkingTranscript, "|", "\n", -1)
+		incomingRequest.Status = request.Completed
+		incomingRequest.CompletedAt = time.Now().UTC().Format(time.RFC3339Nano)
+
+		// add timestamps and get duration
+		_, err := incomingRequest.AddTimestamps("BeginCompletionProcessing", startTime.Format(time.RFC3339Nano), "EndCompletionProcessing")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		// write completed Request to the Requests database
 		if err := repo.Update(&incomingRequest); err != nil {
-			log.Printf("%s.postHandler, repo.Update error: +%v\n", sn, err)
+			log.Printf("%s.postHandler, repo.Update error: %+v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
-
 		}
 
 		// Set a non-2xx status code to indicate a failure in task processing that should be retried.
@@ -118,7 +152,6 @@ func taskHandler() httprouter.Handle {
 
 		// populate a CompletionResponse struct for the HTTP response, with
 		// selected fields of Request
-		incomingRequest.CompletedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		response := request.GetTranscriptResponse{
 			RequestID:    incomingRequest.RequestID,
 			CustomerID:   incomingRequest.CustomerID,
@@ -129,7 +162,7 @@ func taskHandler() httprouter.Handle {
 		}
 
 		if err := json.NewEncoder(w).Encode(response); err != nil {
-			log.Printf("%s.postHandler, json.NewEncoder.Encode error: +%v\n", sn, err)
+			log.Printf("%s.postHandler, json.NewEncoder.Encode error: %+v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -150,6 +183,8 @@ func taskHandler() httprouter.Handle {
 	}
 }
 
+// ********** ********** ********** ********** ********** **********
+
 // indexHandler serves as a health check, responding "service running"
 func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	sn := serviceInfo.GetServiceName()
@@ -162,6 +197,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	// indicate service is running
 	fmt.Fprintf(w, "%q service running\n", sn)
 }
+
+// ********** ********** ********** ********** ********** **********
 
 func myNotFound(w http.ResponseWriter, r *http.Request) {
 	// log.Printf("%s.myNotFound, request for %s not routed\n", sn, r.URL.Path)

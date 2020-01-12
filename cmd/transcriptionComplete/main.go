@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-playground/validator"
@@ -45,7 +47,10 @@ func init() {
 }
 
 func main() {
+	sn := serviceInfo.GetServiceName()
 	// Creating App Engine task handlers: https://cloud.google.com/tasks/docs/creating-appengine-handlers
+
+	defer catch() // implements recover so panics reported
 
 	// connect to the Request database
 	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
@@ -72,10 +77,34 @@ func main() {
 
 	validate = validator.New()
 
-	log.Printf("Service %s listening on port %s, requests will be added to queue %s",
-		serviceInfo.GetServiceName(), port, cfg.QueueName)
-	log.Fatal(http.ListenAndServe(":"+port, middleware.LogReqResp(router)))
+	log.Printf("Starting service %s listening on port %s, requests will be added to queue %s",
+		sn, port, cfg.QueueName)
+
+	// run ListenAndServe in a separate go routine so main can listen for signals
+	go startListening(":"+port, middleware.LogReqResp(router))
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	s := <-signals
+	log.Printf("\n%s.main, received signal %s, terminating", sn, s.String())
 }
+
+func startListening(addr string, handler http.Handler) {
+	if err := http.ListenAndServe(addr, handler); err != http.ErrServerClosed {
+		log.Fatalf("%s.startListening, ListenAndServe returned err: %+v\n", serviceInfo.GetServiceName(), err)
+	}
+}
+
+// catch recover() and log it
+func catch() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Fatalf("=====> RECOVER in %s.main.catch, recover() returned: %v\n", serviceInfo.GetServiceName(), r)
+		}
+	}()
+}
+
+// ********** ********** ********** ********** ********** **********
 
 // taskHandler processes task requests.
 func taskHandler(q queue.Queue) httprouter.Handle {
@@ -116,7 +145,7 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 
 		// create task on the next pipeline stage's queue with updated request
 		if err := q.Add(&qi, &newRequest); err != nil {
-			log.Printf("%s.taskHandler, q.Add error: +%v\n", sn, err)
+			log.Printf("%s.taskHandler, q.Add error: %+v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -131,6 +160,8 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 	}
 }
 
+// ********** ********** ********** ********** ********** **********
+
 // indexHandler responds to requests with "service running"
 func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	sn := serviceInfo.GetServiceName()
@@ -143,6 +174,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	// I'm not dead yet
 	fmt.Fprintf(w, "%q service running\n", sn)
 }
+
+// ********** ********** ********** ********** ********** **********
 
 func myNotFound(w http.ResponseWriter, r *http.Request) {
 	var msg404 = []byte("<h2>404 Not Foundw</h2>")

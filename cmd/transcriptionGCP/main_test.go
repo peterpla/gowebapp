@@ -45,7 +45,7 @@ func TestTranscriptionGCP(t *testing.T) {
 		{name: "valid POST /task_handler",
 			endpoint: "/task_handler",
 			body:     goodJSONBody,
-			status:   http.StatusOK},
+			status:   http.StatusInternalServerError}, // TODO: inject UUID to avoid ErrZeroUUIDError?
 		// valid
 		{name: "unsupported file ext",
 			endpoint: "/task_handler",

@@ -62,7 +62,9 @@ Example Request Body:
 }
 ```
 
-**HACK!!!**: only Google Cloud Storage URIs in the form `gs://` are currently accepted, and the media file to be transcribed must already be present in a specific GCS bucket.
+*!!! HACK !!!*: only .MP3 files are currently accepted.
+
+*!!! HACK !!!*: media files must already be available in Google Cloud Storage URIs in a specific GCS bucket, so the `media_uri` must be in the form `gs://`.
 
 #### Outputs - POST /api/v1/requests
 
@@ -84,7 +86,7 @@ Body, JSON: *(key order is random, no ordering)*
 
   Date and time the Request was accepted (processing began), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
 
-* **"poll_endpoint"** (on `202 Accepted`) - string
+* **"endpoint"** (on `202 Accepted`) - string
 
   Endpoint to `GET` for status of processing this request.
 
@@ -96,7 +98,7 @@ Example Response Body:
   "customer_id":  1234567,
   "media_uri":    "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0",
   "accepted_at":  "2019-12-14T16:36:47.60642Z",
-  "poll_endpoint": "/queues/6697be3b-bdfa-4438-9e2a-ea1511dd0e40"
+  "endpoint": "/status/6697be3b-bdfa-4438-9e2a-ea1511dd0e40"
 }
 ```
 
@@ -104,7 +106,7 @@ Example Response Body:
 
 * 202 Accepted - success
 
-  See `poll_endpoint` in response for endpoint to `GET` for status of processing this request.
+  See `endpoint` in response for endpoint to `GET` for status of processing this request.
 
 * 400 Bad Request
 
@@ -115,17 +117,19 @@ TODO: provide reason for receiving this result
 ---
 ---
 
-## /queues
+## /status
 
 ---
 
-### GET /api/v1/queues/{uuid}
+### GET /api/v1/status/:uuid
 
 Read the status of the previously-submitted transcription Request with `RequestID` = `uuid` ([RFC4112](https://tools.ietf.org/html/rfc4122) v4). Referred to below as *the original request*.
 
 TODO: authentication and authorization
 
-#### Inputs - GET /api/v1/queues/{uuid}
+#### Inputs - GET /api/v1/status/:uuid
+
+`uuid` is the UUID of the *original* request, the status of which is being checked.
 
 `Content-Type` must be `application/json`.
 
@@ -143,7 +147,7 @@ Both `customer_id` and `media_uri` are required for security purposes.
 
 Example Request:
 
-`GET /api/v1/queues/{uuid}`
+`GET /api/v1/status/:uuid`
 
 Example Request Body:
 
@@ -154,13 +158,13 @@ Example Request Body:
 }
 ```
 
-#### Outputs - GET /api/v1/queues
+#### Outputs - GET /api/v1/status
 
 Body, JSON: *(key order is random, no ordering)*
 
 * **"request_id"** (always) - string - [RFC4112](https://tools.ietf.org/html/rfc4122) v4
 
-  UUID identifier of *this* Request, created by the server.
+  UUID identifier of *this* Request for status; created by the server.
 
 * **"customer_id"** (always) - integer
 
@@ -172,11 +176,23 @@ Body, JSON: *(key order is random, no ordering)*
 
 * **"accepted_at"** (always) - string - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt)
 
-  Date and time this Request was accepted (processing began), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
+  Date and time *this* Request was accepted (processing began), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
+
+* **"completed_at"** (always) - string - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt)
+
+  Date and time *this* Request was accepted (processing began), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
 
 * **"original_request_id"** (always) - string - [RFC4112](https://tools.ietf.org/html/rfc4122) v4
 
-  UUID identifier of *the original* Request, created by the server.
+  UUID identifier of *the original* Request, the status of which is being reported.
+
+* **"original_accepted_at"** (always) - string - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt)
+
+  Date and time the *original* Request was accepted (processing began), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
+
+* **"original_completed_at"** (always) - string - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt)
+
+  Date and time the *original* Request was accepted (processing began), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
 
 * **"original_status"** (on success) - string
 
@@ -184,15 +200,15 @@ Body, JSON: *(key order is random, no ordering)*
 
   * `"PENDING"` : the original request is still being processed. *(See `eta` below.)*
 
-  * `"COMPLETED"` : the original request has finished processing and the resulting transcript is available. *(See `transcript_endpoint` below.)*
+  * `"COMPLETED"` : the original request has finished processing and the resulting transcript is available. *(See `endpoint` below.)*
 
   * `"ERROR"` : an error occurred during processing of the original request. *(See `original_status` below.)*
 
 * **"eta"** (only for `status` = `"PENDING"`) - string
 
-  Estimated duration of processing remaining. Recommended waiting at least this amount of time before the next `GET /api/v1/queues` polling request. *(Experimental, this estimate may not be at all reliable.)*
+  Estimated duration of processing remaining. Recommended waiting at least this amount of time before the next `GET /api/v1/status` polling request. *(Experimental, this estimate may not be at all reliable.)*
 
-* **"transcript_endpoint"** (only for `status` = `"COMPLETED"`) - string - [RFC3986](https://tools.ietf.org/html/rfc3986)
+* **"endpoint"** (only for `status` = `"COMPLETED"`) - string - [RFC3986](https://tools.ietf.org/html/rfc3986)
 
   URI to access the finished transcript.
 
@@ -200,7 +216,7 @@ Body, JSON: *(key order is random, no ordering)*
 
   Error status of `4xx` or `5xx` from processing *the original* request.
 
-Example Response Body:
+Example Response Body - COMPLETED:
 
 ```json
 {
@@ -208,20 +224,51 @@ Example Response Body:
   "customer_id": 1234567,
   "media_uri":   "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0",
   "accepted_at": "2019-12-14T16:36:47.60642Z",
+  "completed_at": "2019-12-14T16:36:47.60724Z",
   "original_status": "COMPLETED",
-  "transcript_endpoint":    "/transcripts/6697be3b-bdfa-4438-9e2a-ea1511dd0e40"
+  "original_accepted_at": "2019-12-14T16:36:47.60642Z",
+  "original_completed_at": "2019-12-14T16:36:47.60724Z",
+  "endpoint":    "/transcripts/6697be3b-bdfa-4438-9e2a-ea1511dd0e40"
 }
 ```
 
-#### Response Status: `GET /queues`
+Example Response Body - PENDING:
+
+```json
+{
+  "request_id":  "269fd581-35aa-465d-81df-c0295034c723",
+  "customer_id": 1234567,
+  "media_uri":   "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0",
+  "accepted_at": "2019-12-14T16:36:47.60642Z",
+  "original_status": "PENDING",
+  "original_accepted_at": "2019-12-14T16:36:47.60642Z",
+}
+```
+
+Example Response Body - ERROR:
+
+```json
+{
+  "request_id":  "269fd581-35aa-465d-81df-c0295034c723",
+  "customer_id": 1234567,
+  "media_uri":   "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0",
+  "accepted_at": "2019-12-14T16:36:47.60642Z",
+  "completed_at": "2019-12-14T16:36:47.60724Z",
+  "original_status": 400,
+  "original_accepted_at": "2019-12-14T16:35:47.60642Z",
+  "original_completed_at": "2019-12-14T16:35:47.60724Z",
+}
+```
+
+#### Response Status: `GET /status`
 
 * 200 OK - success
 
-  Refer to `original_status`.
+  This request completed successfully. See `original_status` for the status of the original request.
 
 * 303 See Other - success
 
-  Use `transcript_endpoint` to retrieve the finished transcript.
+  This request completed successfully. Use `endpoint` to retrieve the finished transcript.
 
 * 4xx Bad Request
 
@@ -238,13 +285,13 @@ Example Response Body:
 
 ---
 
-### GET /api/v1/transcripts/{uuid}
+### GET /api/v1/transcripts/:uuid
 
 Read the final transcript from the previously-submitted transcription Request with `RequestID` = `uuid` ([RFC4112](https://tools.ietf.org/html/rfc4122) v4). Referred to below as *the original request*.
 
 TODO: authentication and authorization
 
-#### Inputs - GET /api/v1/transcripts/{uuid}
+#### Inputs - GET /api/v1/transcripts/:uuid
 
 `Content-Type` must be `application/json`.
 
@@ -262,7 +309,7 @@ Both `customer_id` and `media_uri` are required for security purposes.
 
 Example Request:
 
-`GET /api/v1/transcripts/{uuid}`
+`GET /api/v1/transcripts/:uuid`
 
 Example Request Body:
 
@@ -295,11 +342,23 @@ Body, JSON: *(key order is random, no ordering)*
 
 * **"accepted_at"** (always) - string - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt)
 
-  Date and time this Request was accepted (processing began), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
+  Date and time *this* Request was accepted (processing began), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
 
 * **"completed_at"** (always) - string - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt)
 
-  Date and time this Request was completed (processing finished), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
+  Date and time *this* Request was completed (processing finished), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
+
+* **"original_request_id"** (always) - string - [RFC4112](https://tools.ietf.org/html/rfc4122) v4
+
+  UUID identifier of the *original* Request, the status of which is being reported.
+
+* **"original_accepted_at"** (always) - string - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt)
+
+  Date and time the *original* Request was accepted (processing began), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
+
+* **"original_completed_at"** (always) - string - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt)
+
+  Date and time the *original* Request was accepted (processing began), in RFC3339 format. Always with suffix "Z" denoting UTC/GMT (i.e., UTC/GMT offset 00:00.)
 
 * **"transcript"** (always) - string
 
@@ -309,12 +368,14 @@ Example Response Body:
 
 ```json
 {
-  "request_id":  "269fd581-35aa-465d-81df-c0295034c723",
-  "completed_id":  "da4ae569-484d-4f59-bc52-c876058252d8",
+  "request_id": "269fd581-35aa-465d-81df-c0295034c723",
+  "completed_id": "da4ae569-484d-4f59-bc52-c876058252d8",
   "customer_id": 1234567,
-  "media_uri":   "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0",
+  "media_uri": "https://www.dropbox.com/s/0nh7urknw0fqb4h/dummy.?dl=0",
   "accepted_at": "2019-12-14T16:36:47.60642Z",
   "completed_at": "2019-12-14T16:38:12.43756Z",
+  "original_accepted_at": "2019-12-14T16:35:47.60642Z",
+  "original_completed_at": "2019-12-14T16:35:47.60724Z",
   "transcript": "[Speaker 1] Thank you for calling Park flooring.\n[Speaker 2] Hi, my name is Yuri.\n"
 }
 ```
