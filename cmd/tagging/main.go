@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,9 +10,11 @@ import (
 	"syscall"
 	"time"
 
+	dlp "cloud.google.com/go/dlp/apiv2"
 	"github.com/go-playground/validator"
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
+	dlppb "google.golang.org/genproto/googleapis/privacy/dlp/v2"
 
 	"github.com/peterpla/lead-expert/pkg/appengine"
 	"github.com/peterpla/lead-expert/pkg/config"
@@ -137,14 +140,12 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 		//
 		// TODO: to select from additional services, add a tagging-dispatch servive
 
-		var tagResults taggingResults
-
-		if tagResults, err = gDLPTagging(&newRequest); err != nil {
+		if err = gDLPTagging(&newRequest); err != nil {
 			log.Printf("%s.taskHandler, gDLPTagging error: %+v\n", sn, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		log.Printf("%s.taskHandler, tagResults: %+v\n", sn, tagResults)
+		log.Printf("%s.taskHandler, tags: %+v\n", sn, newRequest.MatchedTags)
 
 		// add timestamps and get duration
 		var duration time.Duration
@@ -173,24 +174,138 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 	}
 }
 
-type taggingResults struct {
-	// TBD
+func gDLPTagging(req *request.Request) error {
+	sn := serviceInfo.GetServiceName()
+	// log.Printf("%s.gDLPTagging, enter,  req: %+v\n", sn, req)
+
+	if req.WorkingTranscript == "" {
+		// no transcript to tag; all downstream pipeline stages will fail so report error and exit
+		log.Printf("%s.gDLPTagging, empty WorkingTranscript: %q\n", sn, req.WorkingTranscript)
+		return ErrEmptyTranscript
+	}
+
+	// first use of req.MatchedTags, initialize the map
+	req.MatchedTags = make(map[string]request.Tags)
+
+	var client *dlp.Client
+	var ctx context.Context
+	var err error
+
+	if client, ctx, err = gDLPClient(); err != nil {
+		log.Printf("%s.gDLPTagging, gDLPClient err: %v\n", sn, err)
+		msg := fmt.Sprintf("gDLP error: %v", err)
+		return &taggingError{status: http.StatusInternalServerError, msg: msg}
+	}
+	defer client.Close()
+
+	gDLPReq := gDLPPrepareRequest(req)
+
+	var resp *dlppb.InspectContentResponse
+	if resp, err = gDLPInspect(ctx, client, gDLPReq); err != nil {
+		log.Printf("%s.gDLPTagging, gDLPInspect err: %v\n", sn, err)
+		msg := fmt.Sprintf("gDLP error: %v", err)
+		return &taggingError{status: http.StatusInternalServerError, msg: msg}
+	}
+
+	// Copy tags matching in transcript into Request's tags map
+	gDLPTagsToTagMap(resp.Result, req)
+
+	return nil
 }
 
-func gDLPTagging(req *request.Request) (taggingResults, error) {
+func gDLPClient() (*dlp.Client, context.Context, error) {
 	sn := serviceInfo.GetServiceName()
-	log.Printf("%s.taskHandler, req: %+v\n", sn, req)
+	// log.Printf("%s.gDLPClient enter\n", sn)
 
-	emptyTags := taggingResults{}
+	ctx := context.Background()
 
-	// 1 - request validation: non-empty WorkingTranscript
-	// 2 - create request
-	// 3 - issue request
-	// 4 - wait for response
-	// 5 - handle error, error return
-	// 6 - handle success, success return
+	// Initialize client.
+	client, err := dlp.NewClient(ctx)
+	if err != nil {
+		log.Printf("%s.gDLPClient, NewClient err: %v\n", sn, err)
+		return nil, nil, ErrDLPError
+	}
+	return client, ctx, nil
+}
 
-	return emptyTags, fmt.Errorf("gDLPTagging Not Implemented")
+func gDLPPrepareRequest(req *request.Request) *dlppb.InspectContentRequest {
+	sn := serviceInfo.GetServiceName()
+	// log.Printf("%s.gDLPPrepareRequest enter\n", sn)
+
+	// set parameters for request
+	input := req.WorkingTranscript
+	projectID := config.GetConfigPointer().ProjectID
+
+	minLikelihood := dlppb.Likelihood_POSSIBLE
+	includeQuote := true
+	// TODO: add/tune list of InfoTypes we want to match
+	infoTypes := []*dlppb.InfoType{
+		{Name: "PHONE_NUMBER"},
+		{Name: "PERSON_NAME"},
+		{Name: "STREET_ADDRESS"},
+		{Name: "US_STATE"},
+	}
+	item := &dlppb.ContentItem{
+		DataItem: &dlppb.ContentItem_Value{
+			Value: input,
+		},
+	}
+
+	// Create the request
+	gDLPReq := &dlppb.InspectContentRequest{
+		Parent: "projects/" + projectID,
+		Item:   item,
+		InspectConfig: &dlppb.InspectConfig{
+			InfoTypes:     infoTypes,
+			MinLikelihood: minLikelihood,
+			IncludeQuote:  includeQuote,
+		},
+	}
+	log.Printf("%s.gDLPPrepareRequest exit, gDLPReq: %+v\n", sn, gDLPReq)
+
+	return gDLPReq
+}
+
+func gDLPInspect(ctx context.Context, client *dlp.Client, gDLPReq *dlppb.InspectContentRequest) (*dlppb.InspectContentResponse, error) {
+	sn := serviceInfo.GetServiceName()
+	// log.Printf("%s.gDLPInspect enter\n", sn)
+
+	resp, err := client.InspectContent(ctx, gDLPReq)
+	if err != nil {
+		log.Printf("%s.gDLPInspect, InspectContent err: %v\n", sn, err)
+		msg := fmt.Sprintf("gDLP error: %v", err)
+		return nil, &taggingError{status: http.StatusInternalServerError, msg: msg}
+	}
+	return resp, nil
+}
+
+func gDLPTagsToTagMap(result *dlppb.InspectResult, req *request.Request) {
+	sn := serviceInfo.GetServiceName()
+	log.Printf("%s.gDLPTagsToTagMap enter, result: %+v\n", sn, result)
+
+	log.Printf("Findings: %d\n", len(result.Findings))
+	for _, f := range result.Findings {
+		var tag = request.Tags{}
+
+		name := f.GetInfoType().GetName()
+		tag.Quote = f.GetQuote()
+		tag.Likelihood = int(f.GetLikelihood())
+		tag.BeginByteOffset = int(f.Location.GetByteRange().GetStart())
+		tag.EndByteOffset = int(f.Location.GetByteRange().GetEnd())
+
+		if _, ok := req.MatchedTags[name]; ok {
+			log.Printf("%s.gDLPTagsToTagMap, f[%q]: %+v, compare to existing req.MatchedTags[%q]: %+v\n",
+				sn, name, f, name, req.MatchedTags[name])
+			// already have this tag, ignore unless it has a higher likelihood
+			if tag.Likelihood <= req.MatchedTags[name].Likelihood {
+				continue
+			}
+		}
+		// otherwise add this tag to the map
+		log.Printf("%s.gDLPTagsToTagMap, added to req.MatchedTags[%q]: %+v\n", sn, name, tag)
+		req.MatchedTags[name] = tag
+	}
+	log.Printf("%s.gDLPTagsToTagMap, exiting, tags: %+v\n", sn, req.MatchedTags)
 }
 
 // ********** ********** ********** ********** ********** **********
@@ -217,3 +332,17 @@ func myNotFound(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 	_, _ = w.Write(msg404)
 }
+
+// ********** ********** ********** ********** ********** **********
+
+type taggingError struct {
+	status int
+	msg    string
+}
+
+func (mr *taggingError) Error() string {
+	return mr.msg
+}
+
+var ErrEmptyTranscript = &taggingError{status: http.StatusInternalServerError, msg: "empty transcript"}
+var ErrDLPError = &taggingError{status: http.StatusInternalServerError, msg: "gDLP error"}

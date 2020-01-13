@@ -364,6 +364,10 @@ Body, JSON: *(key order is random, no ordering)*
 
   Final transcript with speakers indicated and `\n` separators when speakers change.
 
+* **"tags"** (always) - array of struct
+
+  Tags for targeted information types detected in the transcript. E.g., `phone_number`, `address`.
+
 Example Response Body:
 
 ```json
@@ -376,7 +380,11 @@ Example Response Body:
   "completed_at": "2019-12-14T16:38:12.43756Z",
   "original_accepted_at": "2019-12-14T16:35:47.60642Z",
   "original_completed_at": "2019-12-14T16:35:47.60724Z",
-  "transcript": "[Speaker 1] Thank you for calling Park flooring.\n[Speaker 2] Hi, my name is Yuri.\n"
+  "transcript": "[Speaker 1] Thank you for calling Park flooring.\n[Speaker 2] Hi, my name is Yuri.\n",
+  "tags": [
+    { "Phone Number": "123-456-7890", "Address" : "123 Main Street, Anytown, Ohio" },
+    { "Phone Number": "234-567-8901", "Address" : "555 Oak Avenue, Townville, California" }
+    ]
 }
 ```
 
