@@ -127,16 +127,20 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 
 		newRequest := incomingRequest
 
-		// TODO: implement tagging QA processing
-		// E.g., submit to the tagging QA service or individuals.
-		//
-		// The current default selection is TBD
-		// so TaskTaggingQAWriteToQ and TaskTaggingQANextSvcToHandleReq
-		// reflect "taggingQA" as the next stage in the pipeline.
+		// TODO: select the tagging QA service or individuals to use and submit
+		//  that request.To select among additional services, add a
+		// tagging-qa-dispatch service
+
+		// The current default selection is to take the DLP Classification
+		// "Findings" found in the Request's MatchedTags map (with the Quote
+		// as the key), and produce a new MatchedTags map with the InfoType
+		// as the key, retaining only the highest-Likelihood result with that InfoType
+		gDLPReorgMatchedTags(&newRequest) // the original MatchedTags will be adjusted in-place
 
 		// add timestamps and get duration
 		var duration time.Duration
 		var err error
+
 		if duration, err = newRequest.AddTimestamps("BeginTaggingQA", startTime, "EndTaggingQA"); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -160,6 +164,47 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 		log.Printf("%s.taskHandler completed in %v: queue %q, task %q, newRequest: %+v",
 			sn, duration, queueName, taskName, newRequest)
 	}
+}
+
+func gDLPReorgMatchedTags(req *request.Request) {
+	sn := serviceInfo.GetServiceName()
+	tmpMap := make(map[string]request.Tags)
+
+	// TODO: make this a function for easier testing
+
+	// MatchedTags[Quote] with Tags value => tmpMap[InfoType] with Tags value
+	for q, it := range req.MatchedTags {
+		newTag := it
+		if _, ok := tmpMap[it.InfoType]; !ok {
+			// new InfoType for tmpMap: capture Quote (initially used as key),
+			// clear InfoType (now the key), add Tag to tmpMap and continue
+			newTag.Quote = q
+			newTag.InfoType = req.MatchedTags[q].InfoType
+			// log.Printf("%s.gDLPReorgMatchedTags, added to tmpMap[%q]: %+v\n", sn, it.InfoType, newTag)
+			tmpMap[it.InfoType] = newTag
+			continue
+		}
+		if req.MatchedTags[q].Likelihood <= tmpMap[it.InfoType].Likelihood {
+			// existing InfoType, but a less-likely match, ignore and continue
+			continue
+		}
+		if req.MatchedTags[q].Likelihood > tmpMap[it.InfoType].Likelihood {
+			// higher likelihood than what we have, overwrite existing Tag
+			newTag.Quote = q
+			newTag.InfoType = req.MatchedTags[q].InfoType
+			tmpMap[it.InfoType] = newTag
+			continue
+		}
+		msg := fmt.Sprintf("%s.gDLPReorgMatchedTags, can't happen: newRequest.MatchedTags[%q]: %+v, tmpMap[%q]: %+v\n",
+			sn, q, req.MatchedTags[q], it.InfoType, tmpMap[it.InfoType])
+		panic(msg)
+	}
+
+	req.MatchedTags = tmpMap
+
+	// log.Printf("%s.gDLPReorgMatchedTags, exit, req.MatchedTags: %+v\n",
+	// 	sn, req.MatchedTags)
+
 }
 
 // ********** ********** ********** ********** ********** **********

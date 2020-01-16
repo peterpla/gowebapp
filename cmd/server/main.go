@@ -128,6 +128,7 @@ func postHandler(q queue.Queue) httprouter.Handle {
 			return
 		}
 		newRequest.RequestID = uuid.New()
+		newRequest.Version = request.RequestVersion
 		newRequest.AcceptedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		newRequest.Status = request.Pending
 
@@ -390,6 +391,7 @@ func getTranscriptsHandler() httprouter.Handle {
 			OriginalAcceptedAt:  returnedRequest.AcceptedAt,
 			OriginalCompletedAt: returnedRequest.CompletedAt,
 			Transcript:          returnedRequest.FinalTranscript,
+			Tags:                returnedRequest.MatchedTags,
 		}
 
 		// send response to client

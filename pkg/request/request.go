@@ -39,18 +39,30 @@ var ErrInvalidTime = errors.New("Invalid time value cannot be parsed")
 // Request defines properties of an incoming transcription request
 // to be added
 type Request struct {
+	Version           int               `json:"version" firestore:"request_version"`
 	RequestID         uuid.UUID         `json:"request_id" firestore:"-"` // redundant when Firestore docID = RequestID
 	CustomerID        int               `json:"customer_id" firestore:"customer_id" validate:"required,gte=1,lt=10000000"`
 	MediaFileURI      string            `json:"media_uri" firestore:"media_uri" validate:"required,uri"`
-	Status            string            `json:"status" firestore:"status"`                             // one of "PENDING", "ERROR", "COMPLETED"
-	OriginalStatus    int               `json:"original_status" firestore:"original_status,omitempty"` // as reported throughout the pipeline
+	Status            string            `json:"status" firestore:"status"`                                       // one of "PENDING", "ERROR", "COMPLETED"
+	OriginalStatus    int               `json:"original_status,omitempty" firestore:"original_status,omitempty"` // as reported throughout the pipeline
 	AcceptedAt        string            `json:"accepted_at" firestore:"accepted_at"`
-	CreatedAt         string            `json:"created_at" firestore:"created_at,omitempty"`
-	UpdatedAt         string            `json:"updated_at" firestore:"updated_at,omitempty"`
-	CompletedAt       string            `json:"completed_at" firestore:"completed_at,omitempty"`
-	WorkingTranscript string            `json:"working_transcript" firestore:"working_transcript,omitempty"`
-	FinalTranscript   string            `json:"final_transcript" firestore:"final_transcript,omitempty"`
+	CreatedAt         string            `json:"created_at,omitempty" firestore:"created_at,omitempty"`
+	UpdatedAt         string            `json:"updated_at,omitempty" firestore:"updated_at,omitempty"`
+	CompletedAt       string            `json:"completed_at,omitempty" firestore:"completed_at,omitempty"`
+	WorkingTranscript string            `json:"working_transcript,omitempty" firestore:"working_transcript,omitempty"`
+	FinalTranscript   string            `json:"final_transcript,omitempty" firestore:"final_transcript,omitempty"`
+	MatchedTags       map[string]Tags   `json:"tags,omitempty" firestore:"tags,omitempty"`
 	Timestamps        map[string]string `json:"timestamps" firestore:"timestamps"`
+}
+
+const RequestVersion = 2 // distinguish older from newer requests
+
+type Tags struct {
+	Quote           string // Quote initially used as the key of the map
+	InfoType        string // InfoType later used as the key of the map
+	Likelihood      int
+	BeginByteOffset int
+	EndByteOffset   int
 }
 
 type RequestRepository interface {
@@ -196,15 +208,16 @@ type GetStatusResponse struct {
 // GetTranscriptResponse holds selected fields of Result struct to include in
 // HTTP response to GET /transcript/:uuid request
 type GetTranscriptResponse struct {
-	RequestID           uuid.UUID `json:"request_id"`
-	CustomerID          int       `json:"customer_id" validate:"required,gte=1,lt=10000000"`
-	MediaFileURI        string    `json:"media_uri"`
-	AcceptedAt          string    `json:"accepted_at"`
-	CompletedAt         string    `json:"completed_at"`
-	OriginalRequestID   uuid.UUID `json:"original_request_id"`
-	OriginalAcceptedAt  string    `json:"original_accepted_at,omitempty"`
-	OriginalCompletedAt string    `json:"original_completed_at,omitempty"`
-	Transcript          string    `json:"transcript"`
+	RequestID           uuid.UUID       `json:"request_id"`
+	CustomerID          int             `json:"customer_id" validate:"required,gte=1,lt=10000000"`
+	MediaFileURI        string          `json:"media_uri"`
+	AcceptedAt          string          `json:"accepted_at"`
+	CompletedAt         string          `json:"completed_at"`
+	OriginalRequestID   uuid.UUID       `json:"original_request_id"`
+	OriginalAcceptedAt  string          `json:"original_accepted_at,omitempty"`
+	OriginalCompletedAt string          `json:"original_completed_at,omitempty"`
+	Transcript          string          `json:"transcript"`
+	Tags                map[string]Tags `json:"tags"`
 }
 
 func (req *Request) AddTimestamps(startKey, startTimestamp, endKey string) (time.Duration, error) {
