@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -21,8 +20,8 @@ func TestCompletionProcessing(t *testing.T) {
 	t.Skip()
 
 	cfg := config.GetConfigPointer()
-	servicePrefix := "completion-processing-dot-" // <---- change to match service!!
-	port := cfg.TaskCompletionProcessingPort      // <---- change to match service!!
+	// servicePrefix := "completion-processing-dot-" // <---- change to match service!!
+	port := cfg.TaskCompletionProcessingPort // <---- change to match service!!
 	repo = database.NewFirestoreRequestRepository(cfg.ProjectID, cfg.DatabaseRequests)
 
 	validate = validator.New()
@@ -59,9 +58,7 @@ func TestCompletionProcessing(t *testing.T) {
 			status:   http.StatusNotFound}}
 
 	prefix := fmt.Sprintf("http://localhost:%s", port)
-	if cfg.IsGAE {
-		prefix = fmt.Sprintf("https://%s%s.appspot.com", servicePrefix, os.Getenv("PROJECT_ID"))
-	}
+	// prefix := fmt.Sprintf("https://%s%s.appspot.com", servicePrefix, cfg.ProjectID)
 
 	for _, tc := range tests {
 		url := prefix + tc.endpoint
@@ -76,8 +73,12 @@ func TestCompletionProcessing(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		theRequest.Header.Set("X-Appengine-Taskname", "localTask")
-		theRequest.Header.Set("X-Appengine-Queuename", "localQueue")
+
+		// running locally, add headers as App Engine does, since we check for them elsewhere
+		if strings.HasPrefix(prefix, "http://localhost") {
+			theRequest.Header.Set("X-Appengine-Taskname", "localTask")
+			theRequest.Header.Set("X-Appengine-Queuename", "localQueue")
+		}
 
 		// response recorder
 		rr := httptest.NewRecorder()

@@ -145,7 +145,7 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		log.Printf("%s.taskHandler, tags: %+v\n", sn, newRequest.MatchedTags)
+		// log.Printf("%s.taskHandler, tags: %+v\n", sn, newRequest.MatchedTags)
 
 		// add timestamps and get duration
 		var duration time.Duration
@@ -175,6 +175,7 @@ func taskHandler(q queue.Queue) httprouter.Handle {
 }
 
 func gDLPTagging(req *request.Request) error {
+	// Cloud DLP Client Libraries https://cloud.google.com/dlp/docs/libraries
 	sn := serviceInfo.GetServiceName()
 	// log.Printf("%s.gDLPTagging, enter,  req: %+v\n", sn, req)
 
@@ -207,8 +208,8 @@ func gDLPTagging(req *request.Request) error {
 		return &taggingError{status: http.StatusInternalServerError, msg: msg}
 	}
 
-	// Copy tags matching in transcript into Request's tags map
-	gDLPTagsToTagMap(resp.Result, req)
+	// Copy Findings from transcript into Request's MatchedTags map
+	gDLPFindingsToTagsMap(resp.Result, req)
 
 	return nil
 }
@@ -229,7 +230,11 @@ func gDLPClient() (*dlp.Client, context.Context, error) {
 }
 
 func gDLPPrepareRequest(req *request.Request) *dlppb.InspectContentRequest {
-	sn := serviceInfo.GetServiceName()
+	// InfoTypes and infoType detectors https://cloud.google.com/dlp/docs/concepts-infotypes
+	// Exclusion Rules and Hotword Rules https://cloud.google.com/dlp/docs/concepts-infotypes#inspection-rules
+	// Creating a regular custom dictionary detector https://cloud.google.com/dlp/docs/creating-custom-infotypes-dictionary
+
+	// sn := serviceInfo.GetServiceName()
 	// log.Printf("%s.gDLPPrepareRequest enter\n", sn)
 
 	// set parameters for request
@@ -261,7 +266,7 @@ func gDLPPrepareRequest(req *request.Request) *dlppb.InspectContentRequest {
 			IncludeQuote:  includeQuote,
 		},
 	}
-	log.Printf("%s.gDLPPrepareRequest exit, gDLPReq: %+v\n", sn, gDLPReq)
+	// log.Printf("%s.gDLPPrepareRequest exit, gDLPReq: %+v\n", sn, gDLPReq)
 
 	return gDLPReq
 }
@@ -279,33 +284,28 @@ func gDLPInspect(ctx context.Context, client *dlp.Client, gDLPReq *dlppb.Inspect
 	return resp, nil
 }
 
-func gDLPTagsToTagMap(result *dlppb.InspectResult, req *request.Request) {
-	sn := serviceInfo.GetServiceName()
-	log.Printf("%s.gDLPTagsToTagMap enter, result: %+v\n", sn, result)
+// gDPLFindingsToTagsMap stores Findings in the Request's MatchedTags map,
+// with the Quote as the key
+func gDLPFindingsToTagsMap(result *dlppb.InspectResult, req *request.Request) {
+	// sn := serviceInfo.GetServiceName()
+	// log.Printf("%s.gDLPFindingsToTagsMap enter, result: %+v\n", sn, result)
 
-	log.Printf("Findings: %d\n", len(result.Findings))
+	// log.Printf("Findings: %d\n", len(result.Findings))
 	for _, f := range result.Findings {
 		var tag = request.Tags{}
 
-		name := f.GetInfoType().GetName()
-		tag.Quote = f.GetQuote()
+		// at this stage, Quote is used as the map key
+		quote := f.GetQuote()
+		tag.InfoType = f.GetInfoType().GetName()
 		tag.Likelihood = int(f.GetLikelihood())
 		tag.BeginByteOffset = int(f.Location.GetByteRange().GetStart())
 		tag.EndByteOffset = int(f.Location.GetByteRange().GetEnd())
 
-		if _, ok := req.MatchedTags[name]; ok {
-			log.Printf("%s.gDLPTagsToTagMap, f[%q]: %+v, compare to existing req.MatchedTags[%q]: %+v\n",
-				sn, name, f, name, req.MatchedTags[name])
-			// already have this tag, ignore unless it has a higher likelihood
-			if tag.Likelihood <= req.MatchedTags[name].Likelihood {
-				continue
-			}
-		}
-		// otherwise add this tag to the map
-		log.Printf("%s.gDLPTagsToTagMap, added to req.MatchedTags[%q]: %+v\n", sn, name, tag)
-		req.MatchedTags[name] = tag
+		// add this tag to the map
+		// log.Printf("%s.gDLPFindingsToTagsMap, added to req.MatchedTags[%q]: %+v\n", sn, quote, tag)
+		req.MatchedTags[quote] = tag
 	}
-	log.Printf("%s.gDLPTagsToTagMap, exiting, tags: %+v\n", sn, req.MatchedTags)
+	// log.Printf("%s.gDLPFindingsToTagsMap, exiting, tags: %+v\n", sn, req.MatchedTags)
 }
 
 // ********** ********** ********** ********** ********** **********

@@ -58,8 +58,8 @@ type Request struct {
 const RequestVersion = 2 // distinguish older from newer requests
 
 type Tags struct {
-	// Name         string // Name is used as the key of the map
-	Quote           string
+	Quote           string // Quote initially used as the key of the map
+	InfoType        string // InfoType later used as the key of the map
 	Likelihood      int
 	BeginByteOffset int
 	EndByteOffset   int
